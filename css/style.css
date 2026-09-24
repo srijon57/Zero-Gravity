@@ -1,0 +1,322 @@
+@import "tailwindcss";
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: #090814;
+}
+
+canvas {
+  display: block;
+}
+
+/* ------------------------------------------------------------------ */
+/* Landing page: lap selector                                          */
+/* ------------------------------------------------------------------ */
+.lap-step {
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 24px;
+  line-height: 1;
+  transition: all 0.2s;
+}
+.lap-step:hover {
+  background: #fff;
+  color: #000;
+}
+.lap-value {
+  min-width: 64px;
+  text-align: center;
+  font-size: 44px;
+  font-weight: 900;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.lap-chip {
+  min-width: 40px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transition: all 0.2s;
+}
+.lap-chip:hover {
+  border-color: rgb(34, 211, 238);
+  color: #fff;
+}
+.lap-chip.active {
+  background: rgb(34, 211, 238);
+  border-color: rgb(34, 211, 238);
+  color: #000;
+}
+
+/* ------------------------------------------------------------------ */
+/* Split-screen HUD                                                    */
+/* ------------------------------------------------------------------ */
+#hud {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  color: #fff;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+}
+
+.hud-half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+}
+.hud-top {
+  top: 0;
+}
+.hud-bottom {
+  bottom: 0;
+}
+
+.hud-divider {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 2px);
+  height: 4px;
+  background: linear-gradient(90deg, #2aa8ff, #0a0a12 30%, #0a0a12 70%, #ff4d4d);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+}
+
+.hud-tag {
+  position: absolute;
+  top: 14px;
+  left: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  border-left: 4px solid var(--player);
+  background: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+  letter-spacing: 0.15em;
+}
+.hud-tag b {
+  color: var(--player);
+  font-weight: 800;
+}
+.hud-tag span {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.hud-info {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  display: flex;
+  gap: 22px;
+  padding: 6px 14px;
+  background: rgba(0, 0, 0, 0.45);
+  border-right: 4px solid var(--player);
+}
+.hud-info small,
+.hud-times small {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.55);
+}
+.hud-info b {
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-times {
+  position: absolute;
+  top: 62px;
+  right: 18px;
+  display: flex;
+  gap: 22px;
+  padding: 4px 14px;
+  background: rgba(0, 0, 0, 0.35);
+}
+.hud-times b {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-speed {
+  position: absolute;
+  left: 18px;
+  bottom: 14px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.hud-speed b {
+  font-size: 56px;
+  font-weight: 900;
+  font-style: italic;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--player);
+}
+.hud-speed span {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hud-nitro {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  letter-spacing: 0.25em;
+}
+.hud-bar {
+  width: 190px;
+  height: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.hud-bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #ff9d00, #ff2d55);
+}
+.hud-nitro.active .hud-bar {
+  box-shadow: 0 0 14px #ff2d55;
+}
+.hud-nitro.locked .hud-bar i {
+  background: #777;
+}
+
+.hud-msg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  font-size: 84px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.hud-msg[data-kind="go"] {
+  color: #4dff88;
+}
+.hud-msg[data-kind="win"] {
+  color: #ffd84d;
+}
+.hud-msg[data-kind="lose"] {
+  font-size: 48px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Results screen */
+.hud-results {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2, 3, 12, 0.72);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.hud-results-card {
+  min-width: 460px;
+  max-width: 92vw;
+  padding: 34px 40px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 4px solid var(--player);
+  background: rgba(8, 8, 18, 0.9);
+  text-align: center;
+}
+.hud-results-kicker {
+  font-size: 10px;
+  letter-spacing: 0.5em;
+  color: rgba(255, 255, 255, 0.45);
+}
+.hud-results-card h2 {
+  margin: 10px 0 24px;
+  font-size: 40px;
+  font-weight: 900;
+  font-style: italic;
+  color: var(--player);
+}
+.hud-results-card table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.hud-results-card th {
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-align: left;
+  color: rgba(255, 255, 255, 0.45);
+}
+.hud-results-card td {
+  padding: 10px;
+  text-align: left;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-variant-numeric: tabular-nums;
+}
+.hud-results-card tbody td:nth-child(2) {
+  color: var(--player);
+  font-weight: 700;
+}
+.hud-results-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 28px;
+}
+.hud-results-buttons button {
+  padding: 14px 30px;
+  border: 1px solid #ef4444;
+  background: #dc2626;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.hud-results-buttons button:hover {
+  background: #ef4444;
+  box-shadow: 0 0 28px rgba(239, 68, 68, 0.5);
+}
+.hud-results-buttons button.ghost {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+.hud-results-buttons button.ghost:hover {
+  background: #fff;
+  color: #000;
+  box-shadow: none;
+}
