@@ -10,15 +10,21 @@ import { isDown } from "./input.js";
 // ---------------------------------------------------------------------------
 export const CAR_SCALE = 0.45;
 
-const MAX_SPEED = 12;
+export const MAX_SPEED = 12;
 const NITRO_SPEED = 19;
-const ACCEL = 7;
+
+// 0 -> MAX_SPEED and MAX_SPEED -> 0 both take roughly 8.5 seconds
+const ACCEL = MAX_SPEED / 8.5;
+const DRAG = MAX_SPEED / 8.5; // coasting down when no key is held
+const BRAKE = MAX_SPEED / 6; // actively holding the brake/reverse key
 const NITRO_ACCEL = 14;
-const BRAKE = 16;
-const DRAG = 3;
 const REVERSE_MAX = 3;
 
-const LAT_SPEED = 3.4; // sideways speed when steering
+// Steering: the heading is turned by the player, it no longer snaps to the
+// road automatically. Driving straight on a curving track will drift you
+// towards the outside wall unless you actually steer into the corner.
+const TURN_RATE = 1.9; // rad/s at full grip
+const HEADING_MAX = 1.35; // rad (~77 degrees) -- how far the car can point away from the track's direction
 const CAR_HALF_WIDTH = 0.32;
 const CLEARANCE = 0.04;
 
@@ -26,12 +32,12 @@ const CLEARANCE = 0.04;
 export const LAT_MAX = roadWidth / 2 - CAR_HALF_WIDTH - 0.03;
 
 const NITRO_DRAIN = 0.4; // meter per second while boosting
-const NITRO_RECHARGE = 0.1;
+const NITRO_RECHARGE = 0.05; // slower refill than before (~20s for a full tank)
 const NITRO_MIN_TO_RESTART = 0.25;
 
 const GRID_BACK = 3.2; // start position: this many units behind the start line
 
-const Y_AXIS = new THREE.Vector3(0, 1, 0);
+const UP_AXIS = new THREE.Vector3(0, 1, 0);
 
 // Clone the shared car model, colour it and add it to the scene
 export function buildCar(template, style) {
@@ -50,6 +56,15 @@ export function buildCar(template, style) {
   return { car, wheels, bottomY, flames };
 }
 
+// Signed angle (about `axis`) needed to rotate `from` onto `to`. Used to track
+// how much the road's own direction turned underneath the car each step, so
+// that "not steering" means "keep going the way you were pointed", not
+// "keep following the road".
+function signedAngle(from, to, axis) {
+  const cross = new THREE.Vector3().crossVectors(from, to);
+  return Math.atan2(cross.dot(axis), from.dot(to));
+}
+
 export class Player {
   constructor({ id, name, color, controls, gridLat, model }) {
     this.id = id;
@@ -65,7 +80,7 @@ export class Player {
 
     this.frameQuat = new THREE.Quaternion();
     this._targetQuat = new THREE.Quaternion();
-    this._yawQuat = new THREE.Quaternion();
+    this._headingQuat = new THREE.Quaternion();
     this._m = new THREE.Matrix4();
     this._up = new THREE.Vector3();
     this._right = new THREE.Vector3();
@@ -81,12 +96,15 @@ export class Player {
 
     this.speed = 0;
     this.lat = this.gridLat;
-    this.latVel = 0;
-    this.yaw = 0;
+    this.heading = 0; // angle between the car's nose and the road's own direction
 
     this.nitro = 1;
     this.nitroActive = false;
     this.nitroLocked = false;
+    this.nitroWasActive = false;
+    this.justStartedNitro = false;
+
+    this.impactThisFrame = 0;
 
     this.finished = false;
     this.finishTime = null;
@@ -136,30 +154,33 @@ export class Player {
     }
   }
 
-  // ---- wall collision: keeps the car on the road ----
+  // ---- wall collision: keeps the car on the road, bounces the nose off the wall ----
   clampToWalls() {
-    let hit = 0;
+    let impact = 0;
 
     if (this.lat > LAT_MAX) {
       this.lat = LAT_MAX;
-      if (this.latVel > 0) {
-        hit = this.latVel;
-        this.latVel = -this.latVel * 0.25;
+      const outwardSpeed = Math.abs(this.speed) * Math.max(0, Math.sin(this.heading));
+      if (outwardSpeed > 0.05) {
+        impact = outwardSpeed;
+        if (this.heading > 0) this.heading = -this.heading * 0.3;
       }
     } else if (this.lat < -LAT_MAX) {
       this.lat = -LAT_MAX;
-      if (this.latVel < 0) {
-        hit = -this.latVel;
-        this.latVel = -this.latVel * 0.25;
+      const outwardSpeed = Math.abs(this.speed) * Math.max(0, -Math.sin(this.heading));
+      if (outwardSpeed > 0.05) {
+        impact = outwardSpeed;
+        if (this.heading < 0) this.heading = -this.heading * 0.3;
       }
     }
 
-    return hit;
+    return impact;
   }
 
   // ---- physics ----
   update(dt, canDrive) {
     const c = this.controls;
+    this.impactThisFrame = 0;
 
     const throttle = canDrive && isDown(c.up);
     const brake = canDrive && isDown(c.down);
@@ -173,6 +194,8 @@ export class Player {
     }
 
     this.nitroActive = wantNitro && !this.nitroLocked && this.nitro > 0;
+    this.justStartedNitro = this.nitroActive && !this.nitroWasActive;
+    this.nitroWasActive = this.nitroActive;
 
     if (this.nitroActive) {
       this.nitro = Math.max(0, this.nitro - NITRO_DRAIN * dt);
@@ -181,57 +204,61 @@ export class Player {
       this.nitro = Math.min(1, this.nitro + NITRO_RECHARGE * dt);
     }
 
-    // Longitudinal speed
+    // ---- longitudinal speed: slow, weighty accel/decel ----
     const topSpeed = this.nitroActive ? NITRO_SPEED : MAX_SPEED;
 
     if (this.nitroActive) {
       this.speed += NITRO_ACCEL * dt;
-    } else if (throttle) {
+    } else if (throttle && !brake) {
       this.speed += ACCEL * dt;
-    } else if (!brake) {
-      // coast down
+    } else if (brake) {
+      if (this.speed > 0.05) this.speed -= BRAKE * dt;
+      else this.speed -= ACCEL * 0.6 * dt; // reverse
+    } else {
+      // no input: coast down towards zero at the same gentle rate
       if (this.speed > 0) this.speed = Math.max(0, this.speed - DRAG * dt);
       else if (this.speed < 0) this.speed = Math.min(0, this.speed + DRAG * dt);
     }
 
-    if (brake) {
-      if (this.speed > 0.05) this.speed -= BRAKE * dt;
-      else this.speed -= ACCEL * 0.5 * dt; // reverse
-    }
-
     if (this.speed > topSpeed) {
-      // after nitro ends, ease back to normal top speed
-      this.speed = Math.max(topSpeed, this.speed - 8 * dt);
+      // ease back down once nitro ends, instead of an abrupt cut
+      this.speed = Math.max(topSpeed, this.speed - DRAG * 1.6 * dt);
     }
     this.speed = THREE.MathUtils.clamp(this.speed, -REVERSE_MAX, NITRO_SPEED);
 
-    // Sideways steering (left = towards the car's left = positive lat)
+    // ---- steering: turns the car's heading, it does not just slide sideways ----
     const steer = (steerLeft ? 1 : 0) - (steerRight ? 1 : 0);
-    const authority = Math.min(1, Math.abs(this.speed) / 2.5);
-    const targetLatVel = steer * LAT_SPEED * authority;
+    const grip = 0.35 + 0.65 * Math.min(1, Math.abs(this.speed) / 3);
+    const turnRate = steer * TURN_RATE * grip;
 
-    this.latVel += (targetLatVel - this.latVel) * (1 - Math.exp(-9 * dt));
-    this.lat += this.latVel * dt;
+    // ---- move using the current heading, THEN correct for how much the
+    // road's own direction turned underneath the car this step ----
+    const oldFrame = getRoadFrame(THREE.MathUtils.clamp(this.progress, 0, 1));
+
+    const forwardDist = this.speed * dt * Math.cos(this.heading);
+    const lateralDist = this.speed * dt * Math.sin(this.heading);
+
+    this.advance(forwardDist);
+    this.lat += lateralDist;
+
+    const newFrame = getRoadFrame(THREE.MathUtils.clamp(this.progress, 0, 1));
+    const roadTurn = signedAngle(oldFrame.tangent, newFrame.tangent, oldFrame.up);
+
+    this.heading = THREE.MathUtils.clamp(
+      this.heading + turnRate * dt - roadTurn,
+      -HEADING_MAX,
+      HEADING_MAX
+    );
 
     // Collision with the road edges
-    const hit = this.clampToWalls();
-    if (hit > 0.4) {
-      this.speed *= 1 - Math.min(0.1, hit * 0.03);
+    const impact = this.clampToWalls();
+    if (impact > 0.05) {
+      this.speed *= 1 - Math.min(0.55, impact * 0.18);
+      this.impactThisFrame = Math.max(this.impactThisFrame, impact);
     }
-    if (Math.abs(this.lat) >= LAT_MAX - 0.001 && steer * Math.sign(this.lat) > 0) {
+    if (Math.abs(this.lat) >= LAT_MAX - 0.001) {
       this.speed *= 1 - 0.4 * dt; // scraping along the wall
     }
-
-    // Move along the track
-    this.advance(this.speed * dt);
-
-    // Visual heading follows the sideways motion
-    const targetYaw = THREE.MathUtils.clamp(
-      Math.atan2(this.latVel, Math.max(this.speed, 2.5)),
-      -0.5,
-      0.5
-    );
-    this.yaw += (targetYaw - this.yaw) * (1 - Math.exp(-12 * dt));
 
     // Wheels + flames
     for (const wheel of this.wheels) wheel.rotation.x += this.speed * dt * 1.4;
@@ -250,8 +277,8 @@ export class Player {
     if (snap) this.frameQuat.copy(this._targetQuat);
     else this.frameQuat.slerp(this._targetQuat, 1 - Math.exp(-18 * dt));
 
-    this._yawQuat.setFromAxisAngle(Y_AXIS, this.yaw);
-    this.car.quaternion.copy(this.frameQuat).multiply(this._yawQuat);
+    this._headingQuat.setFromAxisAngle(UP_AXIS, this.heading);
+    this.car.quaternion.copy(this.frameQuat).multiply(this._headingQuat);
 
     this.car.position
       .copy(frame.center)
@@ -260,7 +287,8 @@ export class Player {
   }
 }
 
-// Bumping two cars into each other
+// Bumping two cars into each other. Returns an impact strength (0 = no hit)
+// so the caller can trigger a sound effect.
 export function resolveCarCollision(a, b) {
   const LEN = 1.2;
   const WID = 0.66;
@@ -270,10 +298,11 @@ export function resolveCarCollision(a, b) {
 
   const ax = Math.abs(dLong);
   const ay = Math.abs(dLat);
-  if (ax >= LEN || ay >= WID) return;
+  if (ax >= LEN || ay >= WID) return 0;
 
   const penLong = LEN - ax;
   const penLat = WID - ay;
+  const impactSpeed = Math.abs(a.speed - b.speed) + Math.min(Math.abs(a.speed), Math.abs(b.speed)) * 0.4;
 
   if (penLat / WID < penLong / LEN) {
     // side-by-side contact: push apart sideways
@@ -281,8 +310,6 @@ export function resolveCarCollision(a, b) {
 
     a.lat -= (s * penLat) / 2;
     b.lat += (s * penLat) / 2;
-    a.latVel -= s * 1.2;
-    b.latVel += s * 1.2;
 
     a.clampToWalls();
     b.clampToWalls();
@@ -301,4 +328,14 @@ export function resolveCarCollision(a, b) {
       front.speed += diff * 0.3;
     }
   }
+
+  // Any collision -- side or rear -- costs both cars some speed
+  a.speed *= 0.88;
+  b.speed *= 0.88;
+
+  const impact = Math.min(1, 0.15 + impactSpeed / 10);
+  a.impactThisFrame = Math.max(a.impactThisFrame, impact);
+  b.impactThisFrame = Math.max(b.impactThisFrame, impact);
+
+  return impact;
 }

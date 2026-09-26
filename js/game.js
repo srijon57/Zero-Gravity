@@ -4,10 +4,11 @@ import { roadUniforms } from "./road.js";
 import "./lights.js";
 import { CAR_URL } from "./assets.js";
 import { CONTROLS, setInputEnabled } from "./input.js";
-import { Player, buildCar, resolveCarCollision } from "./player.js";
+import { Player, buildCar, resolveCarCollision, MAX_SPEED } from "./player.js";
 import { ChaseCamera } from "./camera.js";
 import { SplitScreen } from "./views.js";
 import { Hud, formatTime } from "./hud.js";
+import { EngineSound, playImpact, playNitro, playCountdownBeep, playGoBeep, playFanfare } from "./audio.js";
 
 const PLAYER_SPECS = [
   {
@@ -55,6 +56,10 @@ export class Game {
       this.cameras.map((c) => c.camera)
     );
     this.hud = new Hud(this.players);
+
+    // Engine sounds are created lazily (see start()) since the AudioContext
+    // must not be built before a real user gesture unlocks it.
+    this.engineSounds = null;
   }
 
   start(laps) {
@@ -68,6 +73,13 @@ export class Game {
 
     this.hud.hideResults();
     setInputEnabled(true);
+
+    if (!this.engineSounds) {
+      // First race after the audio-unlocking click on the landing page
+      this.engineSounds = this.players.map((_, i) => new EngineSound(i === 0 ? -0.25 : 0.25));
+    }
+
+    this._lastCountdownTick = null;
 
     this.players.forEach((p, i) => {
       p.reset();
@@ -98,9 +110,14 @@ export class Game {
         this.raceTime = 0;
         this.goTimer = 1;
         this.players.forEach((_, i) => this.hud.setMessage(i, "GO!", "go"));
+        playGoBeep();
       } else {
-        const n = String(Math.ceil(this.countdown));
-        this.players.forEach((_, i) => this.hud.setMessage(i, n, "count"));
+        const tick = Math.ceil(this.countdown);
+        if (tick !== this._lastCountdownTick) {
+          this._lastCountdownTick = tick;
+          playCountdownBeep();
+        }
+        this.players.forEach((_, i) => this.hud.setMessage(i, String(tick), "count"));
       }
     } else if (this.state === "racing") {
       this.raceTime += dt;
@@ -119,7 +136,17 @@ export class Game {
       p.update(dt, canDrive);
     }
 
-    resolveCarCollision(this.players[0], this.players[1]);
+    const carImpact = resolveCarCollision(this.players[0], this.players[1]);
+    if (carImpact > 0) playImpact(carImpact);
+
+    // ---- sound: engine hum, nitro whoosh, wall impacts ----
+    if (this.engineSounds) {
+      this.players.forEach((p, i) => {
+        this.engineSounds[i].update(Math.abs(p.speed) / MAX_SPEED, p.nitroActive);
+        if (p.justStartedNitro) playNitro();
+        if (p.impactThisFrame > 0.12) playImpact(p.impactThisFrame);
+      });
+    }
 
     // ---- pose + cameras ----
     this.players.forEach((p, i) => {
@@ -158,6 +185,8 @@ export class Game {
       if (p === this.winner) this.hud.setMessage(i, "YOU WIN!", "win");
       else this.hud.setMessage(i, `${this.winner.name} WINS`, "lose");
     });
+
+    playFanfare();
   }
 
   showResults() {

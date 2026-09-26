@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { applyCarStyle } from "./carStyle.js";
 import { CAR_URL } from "./assets.js";
+import { unlockAudio } from "./audio.js";
 
 export function setupLandingScreen(onStartRace) {
   const landing = document.createElement("div");
@@ -632,6 +633,9 @@ export function setupLandingScreen(onStartRace) {
   // ============================
 
   function closeLanding() {
+
+    // Browsers only allow audio to start from a real click like this one
+    unlockAudio();
 
     landing.classList.add(
       "opacity-0",
