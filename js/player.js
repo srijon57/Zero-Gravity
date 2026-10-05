@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import { scene } from "./scene.js";
-import { getRoadFrame, tubeRadius, roadWidth, trackLength } from "./road.js";
 import { applyCarStyle } from "./carStyle.js";
 import { createNitroFlames } from "./nitrous.js";
 import { isDown } from "./input.js";
@@ -29,7 +28,6 @@ const CAR_HALF_WIDTH = 0.32;
 const CLEARANCE = 0.04;
 
 // Collision boundary: the car body can never go past the road edge / walls
-export const LAT_MAX = roadWidth / 2 - CAR_HALF_WIDTH - 0.03;
 
 const NITRO_DRAIN = 0.4; // meter per second while boosting
 const NITRO_RECHARGE = 0.05; // slower refill than before (~20s for a full tank)
@@ -66,17 +64,32 @@ function signedAngle(from, to, axis) {
 }
 
 export class Player {
-  constructor({ id, name, color, controls, gridLat, model }) {
+  constructor({
+    id,
+    name,
+    color,
+    controls,
+    gridLat,
+    model,
+    road
+  }) {
     this.id = id;
     this.name = name;
     this.color = color;
     this.controls = controls;
     this.gridLat = gridLat;
+    this.road = road;
 
     this.car = model.car;
     this.wheels = model.wheels;
     this.flames = model.flames;
-    this.floorOffset = tubeRadius + model.bottomY - CLEARANCE;
+    this.bottomY =
+      model.bottomY;
+
+    this.floorOffset =
+      this.road.tubeRadius +
+      this.bottomY -
+      CLEARANCE;
 
     this.frameQuat = new THREE.Quaternion();
     this._targetQuat = new THREE.Quaternion();
@@ -89,8 +102,23 @@ export class Player {
     this.reset();
   }
 
+  get latMax() {
+
+    return (
+      this.road.roadWidth / 2 -
+      CAR_HALF_WIDTH -
+      0.03
+    );
+
+  }
+
   reset() {
-    this.progress = 1 - GRID_BACK / trackLength;
+
+    this.floorOffset =
+      this.road.tubeRadius +
+      this.bottomY -
+      CLEARANCE;
+    this.progress = 1 - GRID_BACK /  this.road.trackLength;
     this.laps = -1; // becomes 0 when the car crosses the line for the first time
     this.maxLaps = -1;
 
@@ -121,7 +149,7 @@ export class Player {
 
   // ---- movement along the track (handles lap wrapping) ----
   advance(distance) {
-    this.progress += distance / trackLength;
+    this.progress += distance / this.road.trackLength;
 
     while (this.progress >= 1) {
       this.progress -= 1;
@@ -158,15 +186,15 @@ export class Player {
   clampToWalls() {
     let impact = 0;
 
-    if (this.lat > LAT_MAX) {
-      this.lat = LAT_MAX;
+    if (this.lat > this.latMax) {
+      this.lat = this.latMax;
       const outwardSpeed = Math.abs(this.speed) * Math.max(0, Math.sin(this.heading));
       if (outwardSpeed > 0.05) {
         impact = outwardSpeed;
         if (this.heading > 0) this.heading = -this.heading * 0.3;
       }
-    } else if (this.lat < -LAT_MAX) {
-      this.lat = -LAT_MAX;
+    } else if (this.lat < -this.latMax) {
+      this.lat = -this.latMax;
       const outwardSpeed = Math.abs(this.speed) * Math.max(0, -Math.sin(this.heading));
       if (outwardSpeed > 0.05) {
         impact = outwardSpeed;
@@ -233,7 +261,7 @@ export class Player {
 
     // ---- move using the current heading, THEN correct for how much the
     // road's own direction turned underneath the car this step ----
-    const oldFrame = getRoadFrame(THREE.MathUtils.clamp(this.progress, 0, 1));
+    const oldFrame = this.road.getRoadFrame(THREE.MathUtils.clamp(this.progress, 0, 1));
 
     const forwardDist = this.speed * dt * Math.cos(this.heading);
     const lateralDist = this.speed * dt * Math.sin(this.heading);
@@ -241,7 +269,7 @@ export class Player {
     this.advance(forwardDist);
     this.lat += lateralDist;
 
-    const newFrame = getRoadFrame(THREE.MathUtils.clamp(this.progress, 0, 1));
+    const newFrame = this.road.getRoadFrame(THREE.MathUtils.clamp(this.progress, 0, 1));
     const roadTurn = signedAngle(oldFrame.tangent, newFrame.tangent, oldFrame.up);
 
     this.heading = THREE.MathUtils.clamp(
@@ -256,7 +284,7 @@ export class Player {
       this.speed *= 1 - Math.min(0.55, impact * 0.18);
       this.impactThisFrame = Math.max(this.impactThisFrame, impact);
     }
-    if (Math.abs(this.lat) >= LAT_MAX - 0.001) {
+    if (Math.abs(this.lat) >= this.latMax  - 0.001) {
       this.speed *= 1 - 0.4 * dt; // scraping along the wall
     }
 
@@ -267,7 +295,7 @@ export class Player {
 
   // ---- place the car on the road ----
   updatePose(dt, snap = false) {
-    const frame = getRoadFrame(THREE.MathUtils.clamp(this.progress, 0, 1));
+    const frame = this.road.getRoadFrame(THREE.MathUtils.clamp(this.progress, 0, 1));
 
     this._right.crossVectors(frame.up, frame.tangent).normalize();
     this._up.crossVectors(frame.tangent, this._right).normalize();
@@ -293,7 +321,7 @@ export function resolveCarCollision(a, b) {
   const LEN = 1.2;
   const WID = 0.66;
 
-  const dLong = (b.total - a.total) * trackLength; // > 0: b is ahead
+  const dLong = (b.total - a.total) * a.road.trackLength; // > 0: b is ahead
   const dLat = b.lat - a.lat;
 
   const ax = Math.abs(dLong);

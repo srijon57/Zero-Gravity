@@ -18,8 +18,10 @@ function animate() {
 }
 
 // The landing screen lets the players pick the number of laps, then the race starts
-setupLandingScreen(async (laps) => {
+setupLandingScreen(async (laps, selectedMap) => {
   await game.ready;
+
+  game.setMap(selectedMap);
   game.start(laps);
 
   if (!looping) {
