@@ -6,12 +6,16 @@ import {
   setupLights,
   updateMapLights
 } from "./lights.js";
-
+import { AIController } from "./aiController.js";
 import {
   DEFAULT_MAP
 } from "./maps/maps.js";
 import { CAR_URL } from "./assets.js";
-import { CONTROLS, setInputEnabled } from "./input.js";
+import {
+  CONTROLS,
+  setInputEnabled,
+  isDown
+} from "./input.js";
 import { Player, buildCar, resolveCarCollision, MAX_SPEED } from "./player.js";
 import { ChaseCamera } from "./camera.js";
 import { SplitScreen } from "./views.js";
@@ -37,6 +41,45 @@ const PLAYER_SPECS = [
   },
 ];
 
+// ============================================================
+// HUMAN KEYBOARD -> VIRTUAL CONTROLS
+// ============================================================
+
+function getHumanControls(
+  controls
+) {
+
+  return {
+
+    throttle:
+      isDown(
+        controls.up
+      ),
+
+    brake:
+      isDown(
+        controls.down
+      ),
+
+    steerLeft:
+      isDown(
+        controls.left
+      ),
+
+    steerRight:
+      isDown(
+        controls.right
+      ),
+
+    nitro:
+      isDown(
+        controls.nitro
+      ),
+
+  };
+
+}
+
 export class Game {
   constructor() {
 
@@ -49,7 +92,19 @@ export class Game {
   this.road = new Road(this.map);
 
   setupLights(this.road);
+  // =========================
+// GAME MODE
+// =========================
 
+this.mode = "local";
+
+this.aiDifficulty = "normal";
+
+this.aiController =
+  new AIController(
+    this.road,
+    this.aiDifficulty
+  );
 
   // =========================
   // GAME STATE
@@ -122,6 +177,146 @@ setup(template) {
 
 }
 
+setMode(
+  mode = "local",
+  aiDifficulty = "normal"
+) {
+
+  this.mode =
+    mode === "ai"
+      ? "ai"
+      : "local";
+
+
+  this.aiDifficulty =
+    ["easy", "normal", "hard"]
+      .includes(aiDifficulty)
+      ? aiDifficulty
+      : "normal";
+
+
+  this.aiController.setDifficulty(
+    this.aiDifficulty
+  );
+
+  // ==========================================================
+// CAR PERFORMANCE
+// ==========================================================
+
+// Player 1 always uses the basic car.
+
+if (
+  this.players?.[0]
+) {
+
+  this.players[0]
+    .setPerformanceMultiplier(
+      1
+    );
+
+}
+
+
+// Player 2:
+//
+// LOCAL       → 1.0x
+// EASY AI     → 1.0x
+// NORMAL AI   → 1.0x
+// HARD AI     → 1.5x
+
+if (
+  this.players?.[1]
+) {
+
+  const hardAi =
+    this.mode === "ai" &&
+    this.aiDifficulty === "hard";
+
+
+  this.players[1]
+    .setPerformanceMultiplier(
+
+      hardAi
+        ? 1.3
+        : 1
+
+    );
+
+}
+
+  // Player 2 becomes NOVA AI
+  // when AI mode is selected.
+
+  if (
+    this.players &&
+    this.players[1]
+  ) {
+
+    if (
+      this.mode === "ai"
+    ) {
+
+      this.players[1].name =
+        "NOVA AI";
+
+    }
+
+    else {
+
+      this.players[1].name =
+        "PLAYER 2";
+
+    }
+
+  }
+
+
+  // These methods will be added below.
+
+  this.views?.setMode(
+    this.mode
+  );
+
+
+  this.hud?.setMode(
+    this.mode
+  );
+
+
+  this.minimap?.setMode(
+    this.mode
+  );
+
+
+  if (this.hud) {
+
+    if (
+      this.mode === "ai"
+    ) {
+
+      this.hud.setPlayerIdentity(
+        1,
+        "NOVA AI",
+        `${this.aiDifficulty.toUpperCase()} AI`
+      );
+
+    }
+
+    else {
+
+      this.hud.setPlayerIdentity(
+        1,
+        "PLAYER 2",
+        "↑ ← ↓ → · ENTER = NITRO"
+      );
+
+    }
+
+  }
+
+}  
+  
+
 setMap(mapConfig) {
   this.map = mapConfig;
 
@@ -139,13 +334,24 @@ setMap(mapConfig) {
 }
 
   start(laps) {
-    this.totalLaps = laps;
+    const parsedLaps =
+  Number(laps);
+
+
+this.totalLaps =
+  Number.isFinite(parsedLaps)
+    ? Math.max(
+        1,
+        Math.floor(parsedLaps)
+      )
+    : 3;
     this.raceTime = 0;
     this.countdown = 3;
     this.goTimer = 0;
     this.endTimer = 0;
     this.winner = null;
     this.state = "countdown";
+    this.aiController.reset();
 
     this.hud.hideResults();
     setInputEnabled(true);
@@ -163,6 +369,7 @@ setMap(mapConfig) {
       this.hud.setMessage(i, "");
     });
     this.minimap.update();
+    this.updateHud();
   }
 
   rank(player) {
@@ -208,10 +415,69 @@ setMap(mapConfig) {
     const canDrive = this.state === "racing";
 
     // ---- physics ----
-    for (const p of this.players) {
-      p.raceTime = this.raceTime;
-      p.update(dt, canDrive);
-    }
+    for (
+  let i = 0;
+  i < this.players.length;
+  i++
+) {
+
+  const p =
+    this.players[i];
+
+
+  p.raceTime =
+    this.raceTime;
+
+
+  let controls;
+
+
+  // --------------------------------
+// Player 2 = AI
+// --------------------------------
+
+if (
+  this.mode === "ai" &&
+  i === 1
+) {
+
+  const opponent =
+    this.players[0];
+
+
+  controls =
+    this.aiController
+      .getControls(
+        p,
+        canDrive,
+        opponent,
+        dt
+      );
+
+}
+
+
+  // --------------------------------
+  // Normal keyboard player
+  // --------------------------------
+
+  else {
+
+    controls =
+      getHumanControls(
+        p.controls
+      );
+
+  }
+
+
+  p.update(
+    dt,
+    canDrive,
+    controls
+  );
+
+}
 
     const carImpact = resolveCarCollision(this.players[0], this.players[1]);
     if (carImpact > 0) playImpact(carImpact);
@@ -219,7 +485,31 @@ setMap(mapConfig) {
     // ---- sound: engine hum, nitro whoosh, wall impacts ----
     if (this.engineSounds) {
       this.players.forEach((p, i) => {
-        this.engineSounds[i].update(Math.abs(p.speed) / MAX_SPEED, p.nitroActive);
+        const playerMaxSpeed =
+  MAX_SPEED *
+  (
+    p.performanceMultiplier ||
+    1
+  );
+
+
+const engineAmount =
+  Math.min(
+
+    1,
+
+    Math.abs(
+      p.speed
+    ) /
+    playerMaxSpeed
+
+  );
+
+
+this.engineSounds[i].update(
+  engineAmount,
+  p.nitroActive
+);
         if (p.justStartedNitro) playNitro();
         if (p.impactThisFrame > 0.12) playImpact(p.impactThisFrame);
       });
