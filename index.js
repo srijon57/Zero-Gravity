@@ -9,24 +9,68 @@ const clock = new THREE.Clock();
 
 let looping = false;
 
-function animate() {
-  requestAnimationFrame(animate);
+let firstGameError =
+  false;
 
-  const dt = clock.getDelta();
+
+function animate() {
+
+  requestAnimationFrame(
+    animate
+  );
+
+  const dt =
+    clock.getDelta();
+
   game.update(dt);
+
   game.render(dt);
+
 }
 
 // The landing screen lets the players pick the number of laps, then the race starts
-setupLandingScreen(async (laps, selectedMap) => {
-  await game.ready;
+setupLandingScreen(
+  async (
+    laps,
+    selectedMap,
+    gameMode,
+    aiDifficulty
+  ) => {
 
-  game.setMap(selectedMap);
-  game.start(laps);
+    await game.ready;
 
-  if (!looping) {
-    looping = true;
-    clock.getDelta();
-    animate();
+
+    // Configure multiplayer / AI.
+
+    game.setMode(
+      gameMode,
+      aiDifficulty
+    );
+
+
+    // Load selected track.
+
+    game.setMap(
+      selectedMap
+    );
+
+
+    // Start race.
+
+    game.start(
+      laps
+    );
+
+
+    if (!looping) {
+
+      looping = true;
+
+      clock.getDelta();
+
+      animate();
+
+    }
+
   }
-});
+);

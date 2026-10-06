@@ -1,51 +1,220 @@
 // Keyboard input for two players on one keyboard.
-//   Player 1: W A S D  (+ Space or Left Shift for nitro)
-//   Player 2: Arrow keys (+ Enter, Right Shift or Numpad 0 for nitro)
+//
+// Player 1:
+// W A S D
+// Space / Left Shift = Nitro
+//
+// Player 2:
+// Arrow keys
+// Enter / Right Shift / Numpad 0 = Nitro
+
 
 export const CONTROLS = {
+
   p1: {
-    up: ["KeyW"],
-    down: ["KeyS"],
-    left: ["KeyA"],
-    right: ["KeyD"],
-    nitro: ["Space", "ShiftLeft"],
+
+    up: [
+      "KeyW"
+    ],
+
+    down: [
+      "KeyS"
+    ],
+
+    left: [
+      "KeyA"
+    ],
+
+    right: [
+      "KeyD"
+    ],
+
+    nitro: [
+      "Space",
+      "ShiftLeft"
+    ],
+
   },
+
+
   p2: {
-    up: ["ArrowUp"],
-    down: ["ArrowDown"],
-    left: ["ArrowLeft"],
-    right: ["ArrowRight"],
-    nitro: ["Enter", "ShiftRight", "Numpad0"],
+
+    up: [
+      "ArrowUp"
+    ],
+
+    down: [
+      "ArrowDown"
+    ],
+
+    left: [
+      "ArrowLeft"
+    ],
+
+    right: [
+      "ArrowRight"
+    ],
+
+    nitro: [
+      "Enter",
+      "ShiftRight",
+      "Numpad0"
+    ],
+
   },
+
 };
 
+
+// ============================================================
+// KEY STATE
+// ============================================================
+
 const keys = {};
-const gameCodes = new Set(
-  Object.values(CONTROLS).flatMap((c) => Object.values(c).flat())
-);
 
-let inputEnabled = false;
 
-// Only swallow keys while the race is on, so the landing page buttons still work
-export function setInputEnabled(value) {
-  inputEnabled = value;
-  if (!value) Object.keys(keys).forEach((k) => (keys[k] = false));
+// All game-related keyboard codes.
+
+const gameCodes =
+  new Set(
+
+    Object
+      .values(CONTROLS)
+      .flatMap(
+        (controls) =>
+          Object
+            .values(controls)
+            .flat()
+      )
+
+  );
+
+
+let inputEnabled =
+  false;
+
+
+// ============================================================
+// ENABLE / DISABLE INPUT
+// ============================================================
+
+export function setInputEnabled(
+  value
+) {
+
+  inputEnabled =
+    value;
+
+
+  // Clear all pressed keys
+  // whenever controls are disabled.
+
+  if (!value) {
+
+    Object
+      .keys(keys)
+      .forEach(
+        (key) => {
+
+          keys[key] =
+            false;
+
+        }
+      );
+
+  }
+
 }
 
-window.addEventListener("keydown", (e) => {
-  keys[e.code] = true;
-  if (inputEnabled && gameCodes.has(e.code)) e.preventDefault();
-});
 
-window.addEventListener("keyup", (e) => {
-  keys[e.code] = false;
-});
+// ============================================================
+// KEY DOWN
+// ============================================================
 
-// Avoid "stuck" keys when the window loses focus
-window.addEventListener("blur", () => {
-  Object.keys(keys).forEach((k) => (keys[k] = false));
-});
+window.addEventListener(
+  "keydown",
+  (event) => {
 
-export function isDown(codes) {
-  return codes.some((code) => keys[code]);
+    keys[event.code] =
+      true;
+
+
+    // Stop browser scrolling etc.
+    // only while racing.
+
+    if (
+      inputEnabled &&
+      gameCodes.has(
+        event.code
+      )
+    ) {
+
+      event.preventDefault();
+
+    }
+
+  }
+);
+
+
+// ============================================================
+// KEY UP
+// ============================================================
+
+window.addEventListener(
+  "keyup",
+  (event) => {
+
+    keys[event.code] =
+      false;
+
+  }
+);
+
+
+// ============================================================
+// WINDOW LOSES FOCUS
+// ============================================================
+
+window.addEventListener(
+  "blur",
+  () => {
+
+    Object
+      .keys(keys)
+      .forEach(
+        (key) => {
+
+          keys[key] =
+            false;
+
+        }
+      );
+
+  }
+);
+
+
+// ============================================================
+// CHECK WHETHER ANY KEY IS DOWN
+// ============================================================
+
+export function isDown(
+  codes
+) {
+
+  if (
+    !Array.isArray(codes)
+  ) {
+
+    return false;
+
+  }
+
+
+  return codes.some(
+    (code) =>
+      !!keys[code]
+  );
+
 }

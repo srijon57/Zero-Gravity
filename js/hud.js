@@ -26,9 +26,12 @@ export class Hud {
         i === 0 ? "W A S D &middot; SPACE = NITRO" : "&uarr; &larr; &darr; &rarr; &middot; ENTER = NITRO";
 
       half.innerHTML = `
-        <div class="hud-tag"><b>${player.name}</b><span>${hint}</span></div>
+        <div class="hud-tag">
+          <b data-el="name">${player.name}</b>
+          <span data-el="hint">${hint}</span>
+        </div>
         <div class="hud-info">
-          <div><small>LAP</small><b data-el="lap">1/1</b></div>
+          <div><small>LAP</small><b data-el="lap">1/3</b></div>
           <div><small>POS</small><b data-el="pos">1/2</b></div>
         </div>
         <div class="hud-times">
@@ -44,6 +47,11 @@ export class Hud {
 
       const q = (name) => half.querySelector(`[data-el="${name}"]`);
       return {
+        root: half,
+
+        name: q("name"),
+        hint: q("hint"),
+
         lap: q("lap"),
         pos: q("pos"),
         time: q("time"),
@@ -51,17 +59,101 @@ export class Hud {
         speed: q("speed"),
         nitro: q("nitro"),
         msg: q("msg"),
-        nitroBar: q("nitro").parentElement,
+
+        nitroBar:
+          q("nitro").parentElement,
       };
     });
 
-    const divider = document.createElement("div");
-    divider.className = "hud-divider";
-    this.root.appendChild(divider);
+    this.divider =
+      document.createElement("div");
+
+    this.divider.className =
+      "hud-divider";
+
+    this.root.appendChild(
+      this.divider
+    );
 
     document.body.appendChild(this.root);
     this.results = null;
   }
+
+  setMode(mode) {
+
+    const aiMode =
+      mode === "ai";
+
+
+    if (aiMode) {
+
+      // Player 1 HUD becomes full-screen.
+
+      this.halves[0]
+        .root
+        .style
+        .height = "100%";
+
+
+      // Hide AI HUD.
+
+      this.halves[1]
+        .root
+        .style
+        .display = "none";
+
+
+      this.divider
+        .style
+        .display = "none";
+
+    }
+
+    else {
+
+      this.halves[0]
+        .root
+        .style
+        .height = "50%";
+
+
+      this.halves[1]
+        .root
+        .style
+        .display = "block";
+
+
+      this.divider
+        .style
+        .display = "block";
+
+    }
+
+  }
+
+
+  setPlayerIdentity(
+    index,
+    name,
+    hint
+  ) {
+
+    const hud =
+      this.halves[index];
+
+
+    if (!hud) return;
+
+
+    hud.name.textContent =
+      name;
+
+
+    hud.hint.textContent =
+      hint;
+
+  }
+
 
   updatePlayer(i, data) {
     const h = this.halves[i];
@@ -96,16 +188,16 @@ export class Hud {
           <thead><tr><th></th><th>Player</th><th>Result</th><th>Best lap</th></tr></thead>
           <tbody>
             ${rows
-              .map(
-                (r) => `
+        .map(
+          (r) => `
               <tr style="--player:${r.color}">
                 <td>${ordinal(r.place)}</td>
                 <td>${r.name}</td>
                 <td>${r.result}</td>
                 <td>${r.best}</td>
               </tr>`
-              )
-              .join("")}
+        )
+        .join("")}
           </tbody>
         </table>
         <div class="hud-results-buttons">

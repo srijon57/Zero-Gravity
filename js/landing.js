@@ -1,69 +1,323 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { applyCarStyle } from "./carStyle.js";
-import { CAR_URL } from "./assets.js";
-import { unlockAudio } from "./audio.js";
-import { MAPS, DEFAULT_MAP } from "./maps/maps.js";
 
-// ------------------------------------------------------------
-// Small top-down track preview used inside each map card.
-// Preview is generated from the map's real curvePath.
-// ------------------------------------------------------------
-function createMapPreviewSVG(map) {
-  const points = [];
+import {
+  GLTFLoader
+} from "three/examples/jsm/loaders/GLTFLoader.js";
 
-  for (let i = 0; i < map.curvePath.length; i += 3) {
-    points.push({
-      x: map.curvePath[i],
-      z: map.curvePath[i + 2],
-    });
+import {
+  applyCarStyle
+} from "./carStyle.js";
+
+import {
+  CAR_URL
+} from "./assets.js";
+
+import {
+  unlockAudio
+} from "./audio.js";
+
+import {
+  MAPS,
+  DEFAULT_MAP
+} from "./maps/maps.js";
+
+
+// ============================================================
+// TRACK LEVEL
+//
+// Desired difficulty progression:
+//
+// Meteor Rift   -> L1
+// Event Horizon -> L2
+// Nebula        -> L3
+//
+// L3 = hardest.
+// ============================================================
+
+function getMapLevel(map) {
+
+  const name =
+    String(
+      map.name || ""
+    )
+      .trim()
+      .toLowerCase();
+
+
+  if (
+    name.includes("meteor rift")
+  ) {
+
+    return 1;
+
   }
 
-  if (points.length < 2) return "";
 
-  const minX = Math.min(...points.map((point) => point.x));
-  const maxX = Math.max(...points.map((point) => point.x));
-  const minZ = Math.min(...points.map((point) => point.z));
-  const maxZ = Math.max(...points.map((point) => point.z));
+  if (
+    name.includes("event horizon")
+  ) {
 
-  const width = Math.max(maxX - minX, 1);
-  const height = Math.max(maxZ - minZ, 1);
+    return 2;
 
-  const viewWidth = 100;
-  const viewHeight = 56;
-  const padding = 7;
+  }
 
-  const scale = Math.min(
-    (viewWidth - padding * 2) / width,
-    (viewHeight - padding * 2) / height
-  );
 
-  const drawnWidth = width * scale;
-  const drawnHeight = height * scale;
+  if (
+    name.includes("nebula")
+  ) {
 
-  const offsetX = (viewWidth - drawnWidth) / 2;
-  const offsetY = (viewHeight - drawnHeight) / 2;
+    return 3;
 
-  const toPreviewPoint = ({ x, z }) => ({
-    x: offsetX + (x - minX) * scale,
-    y: offsetY + (maxZ - z) * scale,
-  });
+  }
 
-  const previewPoints = points.map(toPreviewPoint);
 
-  const pointString = previewPoints
-    .map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`)
-    .join(" ");
+  // Fallback for any other map.
 
-  const start = previewPoints[0];
+  const originalLevel =
+    Number(
+      map.difficulty
+    );
+
+
+  if (
+    Number.isFinite(
+      originalLevel
+    )
+  ) {
+
+    return Math.min(
+      3,
+      Math.max(
+        1,
+        Math.round(
+          originalLevel
+        )
+      )
+    );
+
+  }
+
+
+  return 1;
+
+}
+
+
+// ============================================================
+// MINI TRACK PREVIEW
+// ============================================================
+
+function createMapPreviewSVG(map) {
+
+  const points =
+    [];
+
+
+  for (
+    let i = 0;
+    i < map.curvePath.length;
+    i += 3
+  ) {
+
+    points.push({
+
+      x:
+        map.curvePath[i],
+
+      z:
+        map.curvePath[i + 2]
+
+    });
+
+  }
+
+
+  if (
+    points.length < 2
+  ) {
+
+    return "";
+
+  }
+
+
+  const minX =
+    Math.min(
+      ...points.map(
+        (point) =>
+          point.x
+      )
+    );
+
+
+  const maxX =
+    Math.max(
+      ...points.map(
+        (point) =>
+          point.x
+      )
+    );
+
+
+  const minZ =
+    Math.min(
+      ...points.map(
+        (point) =>
+          point.z
+      )
+    );
+
+
+  const maxZ =
+    Math.max(
+      ...points.map(
+        (point) =>
+          point.z
+      )
+    );
+
+
+  const width =
+    Math.max(
+      maxX - minX,
+      1
+    );
+
+
+  const height =
+    Math.max(
+      maxZ - minZ,
+      1
+    );
+
+
+  const viewWidth =
+    100;
+
+
+  const viewHeight =
+    56;
+
+
+  const padding =
+    7;
+
+
+  const scale =
+    Math.min(
+
+      (
+        viewWidth -
+        padding * 2
+      ) /
+      width,
+
+      (
+        viewHeight -
+        padding * 2
+      ) /
+      height
+
+    );
+
+
+  const drawnWidth =
+    width *
+    scale;
+
+
+  const drawnHeight =
+    height *
+    scale;
+
+
+  const offsetX =
+
+    (
+      viewWidth -
+      drawnWidth
+    ) /
+    2;
+
+
+  const offsetY =
+
+    (
+      viewHeight -
+      drawnHeight
+    ) /
+    2;
+
+
+  const toPreviewPoint =
+    ({
+      x,
+      z
+    }) => ({
+
+      x:
+
+        offsetX +
+
+        (
+          x -
+          minX
+        ) *
+        scale,
+
+
+      y:
+
+        offsetY +
+
+        (
+          maxZ -
+          z
+        ) *
+        scale
+
+    });
+
+
+  const previewPoints =
+    points.map(
+      toPreviewPoint
+    );
+
+
+  const pointString =
+
+    previewPoints
+
+      .map(
+        (point) =>
+
+          `${point.x.toFixed(
+            1
+          )},${point.y.toFixed(
+            1
+          )}`
+
+      )
+
+      .join(
+        " "
+      );
+
+
+  const start =
+    previewPoints[0];
+
 
   return `
+
     <svg
       class="map-preview-svg"
       viewBox="0 0 ${viewWidth} ${viewHeight}"
       preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
     >
+
       <polyline
         class="map-preview-shadow"
         points="${pointString}"
@@ -71,6 +325,7 @@ function createMapPreviewSVG(map) {
         stroke-linecap="round"
         stroke-linejoin="round"
       />
+
 
       <polyline
         class="map-preview-track"
@@ -80,204 +335,558 @@ function createMapPreviewSVG(map) {
         stroke-linejoin="round"
       />
 
+
       <circle
         class="map-preview-start"
         cx="${start.x.toFixed(1)}"
         cy="${start.y.toFixed(1)}"
         r="2.2"
       />
+
     </svg>
+
   `;
+
 }
 
-export function setupLandingScreen(onStartRace) {
-  const landing = document.createElement("div");
+
+// ============================================================
+// LANDING SCREEN
+// ============================================================
+
+export function setupLandingScreen(
+  onStartRace
+) {
+
+  const landing =
+    document.createElement(
+      "div"
+    );
+
 
   landing.className = `
     fixed inset-0 z-50
-    overflow-x-hidden overflow-y-auto
+    overflow-x-hidden
+    overflow-y-auto
     bg-[#050507]
-    transition-opacity duration-700
+    transition-opacity
+    duration-700
   `;
 
+
   landing.innerHTML = `
+
     <style>
 
       /* ======================================================
-         MAP SELECTION
+         GAME MODE
       ====================================================== */
 
-      .landing-map-grid {
+      .landing-mode-row {
+
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+
+        grid-template-columns:
+          repeat(
+            2,
+            minmax(
+              0,
+              1fr
+            )
+          );
+
         gap: 7px;
+
       }
 
-      .map-chip.landing-map-card {
+
+      .landing-mode-button {
+
         position: relative;
-        min-width: 0;
-        min-height: 98px;
-        padding: 7px 6px 8px;
-        overflow: hidden;
-      }
 
-      .landing-map-card .map-level {
-        margin: 0;
-        font-size: 8px;
-        line-height: 1;
-      }
+        min-height: 48px;
 
-      .landing-map-card strong {
-        display: block;
-        margin-top: 5px;
-        overflow: hidden;
-        font-size: 8px;
-        line-height: 1.2;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-      }
-
-      /* ======================================================
-         MINI MAP PREVIEW
-      ====================================================== */
-
-      .map-preview-shell {
-        display: flex;
-        height: 52px;
-        margin-top: 5px;
-        align-items: center;
-        justify-content: center;
-
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.08
+          );
 
         background:
-          radial-gradient(
-            circle at center,
-            rgba(239, 68, 68, 0.08),
-            transparent 68%
-          ),
-          rgba(255, 255, 255, 0.015);
+          rgba(
+            255,
+            255,
+            255,
+            0.018
+          );
+
+        color:
+          rgba(
+            255,
+            255,
+            255,
+            0.38
+          );
 
         transition:
           border-color 180ms ease,
-          background 180ms ease;
+          background 180ms ease,
+          color 180ms ease,
+          box-shadow 180ms ease;
+
       }
+
+
+      .landing-mode-button:hover {
+
+        border-color:
+          rgba(
+            255,
+            255,
+            255,
+            0.22
+          );
+
+        color:
+          rgba(
+            255,
+            255,
+            255,
+            0.75
+          );
+
+      }
+
+
+      .landing-mode-button.active {
+
+        border-color:
+          rgba(
+            239,
+            68,
+            68,
+            0.55
+          );
+
+        background:
+          rgba(
+            239,
+            68,
+            68,
+            0.08
+          );
+
+        color:
+          #ffffff;
+
+        box-shadow:
+          inset 0 0 24px
+          rgba(
+            239,
+            68,
+            68,
+            0.035
+          );
+
+      }
+
+
+      .landing-mode-main {
+
+        display: block;
+
+        font-size: 9px;
+
+        font-weight: 700;
+
+        text-transform:
+          uppercase;
+
+        letter-spacing:
+          0.25em;
+
+      }
+
+
+      .landing-mode-sub {
+
+        display: block;
+
+        margin-top: 4px;
+
+        font-size: 7px;
+
+        text-transform:
+          uppercase;
+
+        letter-spacing:
+          0.18em;
+
+        color:
+          rgba(
+            255,
+            255,
+            255,
+            0.25
+          );
+
+      }
+
+
+      /* ======================================================
+         MAP GRID
+      ====================================================== */
+
+      .landing-map-grid {
+
+        display: grid;
+
+        grid-template-columns:
+          repeat(
+            auto-fit,
+            minmax(
+              72px,
+              1fr
+            )
+          );
+
+        gap: 7px;
+
+      }
+
+
+      .map-chip.landing-map-card {
+
+        position: relative;
+
+        min-width: 0;
+
+        min-height: 78px;
+
+        padding:
+          7px 6px 7px;
+
+        overflow: hidden;
+
+      }
+
+
+      .landing-map-card .map-level {
+
+        display: block;
+
+        margin: 0;
+
+        font-size: 8px;
+
+        line-height: 1;
+
+        color:
+          rgba(
+            255,
+            255,
+            255,
+            0.38
+          );
+
+      }
+
+
+      /* ======================================================
+         MAP PREVIEW
+      ====================================================== */
+
+      .map-preview-shell {
+
+        display: flex;
+
+        height: 54px;
+
+        margin-top: 5px;
+
+        align-items: center;
+
+        justify-content: center;
+
+        border:
+          1px solid
+          rgba(
+            255,
+            255,
+            255,
+            0.05
+          );
+
+        background:
+
+          radial-gradient(
+            circle at center,
+            rgba(
+              239,
+              68,
+              68,
+              0.08
+            ),
+            transparent 68%
+          ),
+
+          rgba(
+            255,
+            255,
+            255,
+            0.015
+          );
+
+      }
+
 
       .map-preview-svg {
+
         width: 100%;
+
         height: 100%;
+
         overflow: visible;
+
       }
+
 
       .map-preview-shadow {
-        stroke: rgba(0, 0, 0, 0.75);
+
+        stroke:
+          rgba(
+            0,
+            0,
+            0,
+            0.75
+          );
+
         stroke-width: 7;
+
       }
 
+
       .map-preview-track {
-        stroke: rgba(255, 255, 255, 0.38);
+
+        stroke:
+          rgba(
+            255,
+            255,
+            255,
+            0.38
+          );
+
         stroke-width: 3.2;
 
         transition:
           stroke 180ms ease,
           filter 180ms ease;
+
       }
+
 
       .map-preview-start {
+
         fill: #ef4444;
-        stroke: rgba(255, 255, 255, 0.85);
+
+        stroke:
+          rgba(
+            255,
+            255,
+            255,
+            0.85
+          );
+
         stroke-width: 0.9;
+
         opacity: 0.78;
+
       }
 
-      .landing-map-card:hover .map-preview-track {
-        stroke: rgba(255, 255, 255, 0.82);
+
+      .landing-map-card:hover
+      .map-preview-track {
+
+        stroke:
+          rgba(
+            255,
+            255,
+            255,
+            0.82
+          );
+
       }
 
-      .landing-map-card.active .map-preview-track {
-        stroke: #ef4444;
+
+      .landing-map-card.active
+      .map-preview-track {
+
+        stroke:
+          #ef4444;
 
         filter:
           drop-shadow(
             0 0 3px
-            rgba(239, 68, 68, 0.75)
+            rgba(
+              239,
+              68,
+              68,
+              0.75
+            )
           );
+
       }
 
-      .landing-map-card.active .map-preview-start {
+
+      .landing-map-card.active
+      .map-preview-start {
+
         fill: #ffffff;
-        stroke: #ef4444;
+
+        stroke:
+          #ef4444;
+
         opacity: 1;
+
       }
 
-      .landing-map-card.active .map-preview-shell {
-        border-color: rgba(239, 68, 68, 0.28);
+
+      .landing-map-card.active
+      .map-preview-shell {
+
+        border-color:
+          rgba(
+            239,
+            68,
+            68,
+            0.28
+          );
 
         background:
+
           radial-gradient(
             circle at center,
-            rgba(239, 68, 68, 0.15),
+            rgba(
+              239,
+              68,
+              68,
+              0.15
+            ),
             transparent 70%
           ),
-          rgba(239, 68, 68, 0.025);
+
+          rgba(
+            239,
+            68,
+            68,
+            0.025
+          );
+
       }
 
+
       /* ======================================================
-         COMPACT LAP SELECTION
+         SMALL LAP SELECTOR
       ====================================================== */
 
       .lap-step.compact-lap-step {
-        width: 30px;
-        height: 30px;
-        font-size: 16px;
+
+        width: 28px;
+
+        height: 28px;
+
+        font-size: 14px;
+
       }
+
 
       .lap-value.compact-lap-value {
-        min-width: 32px;
-        font-size: 24px;
+
+        min-width: 31px;
+
+        font-size: 22px;
+
         line-height: 1;
+
       }
+
 
       .lap-chip.compact-lap-chip {
-        min-width: 28px;
-        height: 26px;
-        padding: 0 6px;
-        font-size: 9px;
+
+        min-width: 25px;
+
+        height: 25px;
+
+        padding:
+          0 5px;
+
+        font-size: 8px;
+
       }
 
+
       /* ======================================================
-         MOBILE
+         RESPONSIVE
       ====================================================== */
 
-      @media (max-width: 767px) {
+      @media (
+        max-width: 767px
+      ) {
+
         .landing-map-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+
+          grid-template-columns:
+            repeat(
+              3,
+              minmax(
+                0,
+                1fr
+              )
+            );
+
         }
 
-        .map-chip.landing-map-card {
-          min-height: 94px;
-        }
       }
 
-      /* ======================================================
-         SMALLER LAPTOP HEIGHT
-      ====================================================== */
 
-      @media (min-width: 768px) and (max-height: 820px) {
+      @media (
+        min-width: 768px
+      )
+      and
+      (
+        max-height: 820px
+      ) {
+
         #landing-title {
+
           font-size: 78px;
+
         }
+
+
+        #landing-selector {
+
+          margin-top: 18px;
+
+        }
+
 
         #landing-controls {
+
           margin-top: 18px;
+
         }
+
       }
 
     </style>
 
 
     <!-- ======================================================
-         BACKGROUND GLOWS
+         BACKGROUND
     ======================================================= -->
 
     <div class="
@@ -321,27 +930,61 @@ export function setupLandingScreen(onStartRace) {
       flex
       w-full
       items-center
-      justify-end
+      justify-between
       px-10
       py-6
       md:px-16
     ">
 
-      <span class="
-        hidden
-        text-[10px]
-        tracking-[0.3em]
-        text-white/25
-        md:block
+      <div class="
+        flex
+        items-center
+        gap-3
       ">
-        // 2 PLAYER SPLIT-SCREEN RACE
+
+        <div class="
+          h-2
+          w-2
+          rounded-full
+          bg-red-500
+          shadow-[0_0_14px_#ef4444]
+        ">
+        </div>
+
+
+        <span
+          id="landing-mode-status"
+          class="
+            text-[10px]
+            uppercase
+            tracking-[0.4em]
+            text-white/40
+          "
+        >
+          SINGLE PLAYER · VS NOVA AI
+        </span>
+
+      </div>
+
+
+      <span
+        id="landing-mode-top-right"
+        class="
+          hidden
+          text-[10px]
+          tracking-[0.3em]
+          text-white/25
+          md:block
+        "
+      >
+        // AI RACE
       </span>
 
     </div>
 
 
     <!-- ======================================================
-         MAIN CONTENT
+         MAIN
     ======================================================= -->
 
     <main class="
@@ -361,7 +1004,7 @@ export function setupLandingScreen(onStartRace) {
 
 
       <!-- ====================================================
-           LEFT SIDE
+           LEFT
       ===================================================== -->
 
       <section class="
@@ -372,8 +1015,6 @@ export function setupLandingScreen(onStartRace) {
         justify-center
       ">
 
-
-        <!-- Small heading -->
 
         <div class="
           mb-4
@@ -404,9 +1045,7 @@ export function setupLandingScreen(onStartRace) {
         </div>
 
 
-        <!-- ==================================================
-             TITLE
-        =================================================== -->
+        <!-- TITLE -->
 
         <h1
           id="landing-title"
@@ -440,13 +1079,13 @@ export function setupLandingScreen(onStartRace) {
 
 
         <!-- ==================================================
-             SELECTION AREA
+             SELECTOR
         =================================================== -->
 
         <div
           id="landing-selector"
           class="
-            mt-10
+            mt-8
             w-full
             max-w-md
           "
@@ -454,10 +1093,12 @@ export function setupLandingScreen(onStartRace) {
 
 
           <!-- ================================================
-               TRACK SELECTION
+               GAME MODE
           ================================================= -->
 
-          <div class="mb-9">
+          <div class="
+            mb-5
+          ">
 
             <div class="
               mb-2
@@ -466,45 +1107,165 @@ export function setupLandingScreen(onStartRace) {
               tracking-[0.4em]
               text-white/40
             ">
-              Select track
+              Game mode
             </div>
 
 
-            <div class="landing-map-grid">
+            <div class="
+              landing-mode-row
+            ">
+
+              <!-- 2 PLAYER -->
+
+              <button
+                type="button"
+                class="
+                  landing-mode-button
+                "
+                data-game-mode="local"
+              >
+
+                <span class="
+                  landing-mode-main
+                ">
+                  2 Players
+                </span>
+
+
+                <span class="
+                  landing-mode-sub
+                ">
+                  Split Screen
+                </span>
+
+              </button>
+
+
+              <!-- AI -->
+
+              <button
+                type="button"
+                class="
+                  landing-mode-button
+                  active
+                "
+                data-game-mode="ai"
+              >
+
+                <span class="
+                  landing-mode-main
+                ">
+                  VS AI
+                </span>
+
+
+                <span class="
+                  landing-mode-sub
+                ">
+                  NOVA AI
+                </span>
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <!-- ================================================
+               MAPS
+          ================================================= -->
+
+          <div class="
+            mb-5
+          ">
+
+            <div class="
+              mb-2
+              flex
+              items-center
+              justify-between
+            ">
+
+              <span class="
+                text-[10px]
+                uppercase
+                tracking-[0.4em]
+                text-white/40
+              ">
+                Select track
+              </span>
+
+
+              <span class="
+                text-[8px]
+                uppercase
+                tracking-[0.2em]
+                text-white/20
+              ">
+                L1 → L3
+              </span>
+
+            </div>
+
+
+            <!--
+              No map-name section.
+              No description section.
+              Only map previews.
+            -->
+
+            <div class="
+              landing-map-grid
+            ">
 
               ${MAPS.map(
-                (map) => `
+                (map) => {
 
-                <button
-                  type="button"
-                  class="
-                    map-chip
-                    landing-map-card
-                  "
-                  data-map-id="${map.id}"
-                  aria-label="Select ${map.name}"
-                  title="${map.name}"
-                >
-
-                  <span class="map-level">
-                    L${map.difficulty}
-                  </span>
+                  const level =
+                    getMapLevel(
+                      map
+                    );
 
 
-                  <span class="map-preview-shell">
+                  return `
 
-                    ${createMapPreviewSVG(map)}
+                    <button
+                      type="button"
+                      class="
+                        map-chip
+                        landing-map-card
+                      "
+                      data-map-id="${map.id}"
+                      aria-label="
+                        Select ${map.name}
+                      "
+                      title="${map.name}"
+                    >
 
-                  </span>
+                      <span class="
+                        map-level
+                      ">
+                        L${level}
+                      </span>
 
 
-                  <strong title="${map.name}">
-                    ${map.name}
-                  </strong>
+                      <span class="
+                        map-preview-shell
+                      ">
 
-                </button>
+                        ${createMapPreviewSVG(
+                          map
+                        )}
 
-              `
+                      </span>
+
+                    </button>
+
+                  `;
+
+                }
+
               ).join("")}
 
             </div>
@@ -513,14 +1274,14 @@ export function setupLandingScreen(onStartRace) {
 
 
           <!-- ================================================
-               LAP SELECTION
+               LAPS
           ================================================= -->
 
           <div class="
             mb-2
-            text-[10px]
+            text-[9px]
             uppercase
-            tracking-[0.4em]
+            tracking-[0.35em]
             text-white/40
           ">
             Number of laps
@@ -534,9 +1295,6 @@ export function setupLandingScreen(onStartRace) {
             gap-2
           ">
 
-
-            <!-- Decrease -->
-
             <button
               id="lap-minus"
               class="
@@ -549,8 +1307,6 @@ export function setupLandingScreen(onStartRace) {
             </button>
 
 
-            <!-- Current number -->
-
             <div
               id="lap-value"
               class="
@@ -561,8 +1317,6 @@ export function setupLandingScreen(onStartRace) {
               3
             </div>
 
-
-            <!-- Increase -->
 
             <button
               id="lap-plus"
@@ -576,12 +1330,10 @@ export function setupLandingScreen(onStartRace) {
             </button>
 
 
-            <!-- Quick lap buttons -->
-
             <div class="
               ml-1
               flex
-              gap-2
+              gap-1.5
             ">
 
               <button
@@ -633,7 +1385,7 @@ export function setupLandingScreen(onStartRace) {
 
 
           <!-- ================================================
-               START BUTTON
+               START
           ================================================= -->
 
           <button
@@ -679,9 +1431,6 @@ export function setupLandingScreen(onStartRace) {
           "
         >
 
-
-          <!-- Player 1 -->
-
           <div class="
             flex
             items-center
@@ -696,6 +1445,7 @@ export function setupLandingScreen(onStartRace) {
               Player 1
             </span>
 
+
             <span>
               W A S D
               &nbsp;·&nbsp;
@@ -705,29 +1455,28 @@ export function setupLandingScreen(onStartRace) {
           </div>
 
 
-          <!-- Player 2 -->
-
           <div class="
             flex
             items-center
             gap-4
           ">
 
-            <span class="
-              w-24
-              font-bold
-              text-[#ff4d4d]
-            ">
-              Player 2
+            <span
+              id="player-two-label"
+              class="
+                w-24
+                font-bold
+                text-[#ff4d4d]
+              "
+            >
+              NOVA AI
             </span>
 
-            <span>
-              &uarr;
-              &larr;
-              &darr;
-              &rarr;
-              &nbsp;·&nbsp;
-              Enter = Nitro
+
+            <span
+              id="player-two-controls"
+            >
+              Autonomous Rival
             </span>
 
           </div>
@@ -738,7 +1487,7 @@ export function setupLandingScreen(onStartRace) {
 
 
       <!-- ====================================================
-           RIGHT SIDE SHOWROOM
+           RIGHT SHOWROOM
       ===================================================== -->
 
       <section class="
@@ -750,7 +1499,7 @@ export function setupLandingScreen(onStartRace) {
       ">
 
 
-        <!-- Back circle -->
+        <!-- BACKPLATE -->
 
         <div class="
           absolute
@@ -763,8 +1512,6 @@ export function setupLandingScreen(onStartRace) {
         </div>
 
 
-        <!-- Inner circle -->
-
         <div class="
           absolute
           h-[330px]
@@ -776,7 +1523,7 @@ export function setupLandingScreen(onStartRace) {
         </div>
 
 
-        <!-- Decorative number -->
+        <!-- DECORATIVE TEXT -->
 
         <div class="
           pointer-events-none
@@ -794,7 +1541,7 @@ export function setupLandingScreen(onStartRace) {
         </div>
 
 
-        <!-- Three.js car -->
+        <!-- THREE.JS PREVIEW -->
 
         <div
           id="car-preview"
@@ -809,7 +1556,7 @@ export function setupLandingScreen(onStartRace) {
         </div>
 
 
-        <!-- Showroom label -->
+        <!-- SHOWROOM LABEL -->
 
         <div class="
           absolute
@@ -828,12 +1575,14 @@ export function setupLandingScreen(onStartRace) {
             Race Prototype
           </span>
 
+
           <div class="
             h-px
             w-10
             bg-red-500/50
           ">
           </div>
+
 
           <span>
             01
@@ -846,9 +1595,7 @@ export function setupLandingScreen(onStartRace) {
     </main>
 
 
-    <!-- ======================================================
-         BOTTOM BORDER
-    ======================================================= -->
+    <!-- BOTTOM BORDER -->
 
     <div class="
       absolute
@@ -862,142 +1609,411 @@ export function setupLandingScreen(onStartRace) {
       to-transparent
     ">
     </div>
+
   `;
 
 
-  document.body.appendChild(landing);
+  document.body.appendChild(
+    landing
+  );
 
 
   // ==========================================================
-  // DOM ELEMENTS
+  // DOM
   // ==========================================================
 
-  const container = document.getElementById("car-preview");
+  const container =
+    document.getElementById(
+      "car-preview"
+    );
 
-  const startButton = document.getElementById("start-race");
 
-  const lapValue = document.getElementById("lap-value");
+  const startButton =
+    document.getElementById(
+      "start-race"
+    );
 
-  const lapChips = landing.querySelectorAll(".lap-chip");
 
-  const mapButtons = landing.querySelectorAll(".map-chip");
+  const lapValue =
+    document.getElementById(
+      "lap-value"
+    );
+
+
+  const lapChips =
+    landing.querySelectorAll(
+      ".lap-chip"
+    );
+
+
+  const mapButtons =
+    landing.querySelectorAll(
+      ".map-chip"
+    );
+
+
+  const modeButtons =
+    landing.querySelectorAll(
+      "[data-game-mode]"
+    );
+
+
+  const playerTwoLabel =
+    document.getElementById(
+      "player-two-label"
+    );
+
+
+  const playerTwoControls =
+    document.getElementById(
+      "player-two-controls"
+    );
+
+
+  const modeStatus =
+    document.getElementById(
+      "landing-mode-status"
+    );
+
+
+  const modeTopRight =
+    document.getElementById(
+      "landing-mode-top-right"
+    );
+
+
+  // ==========================================================
+  // GAME MODE
+  //
+  // AI is default.
+  //
+  // AI difficulty is permanently HARD.
+  //
+  // No Easy / Normal / Hard selector.
+  // ==========================================================
+
+  let gameMode =
+    "ai";
+
+
+  const aiDifficulty =
+    "hard";
+
+
+  function setGameMode(
+    mode
+  ) {
+
+    gameMode =
+
+      mode === "local"
+
+        ? "local"
+
+        : "ai";
+
+
+    modeButtons.forEach(
+      (button) => {
+
+        button.classList.toggle(
+
+          "active",
+
+          button.dataset.gameMode ===
+            gameMode
+
+        );
+
+      }
+    );
+
+
+    // --------------------------------------------------------
+    // AI MODE
+    // --------------------------------------------------------
+
+    if (
+      gameMode === "ai"
+    ) {
+
+      playerTwoLabel.textContent =
+        "NOVA AI";
+
+
+      playerTwoControls.textContent =
+        "Autonomous Rival";
+
+
+      modeStatus.textContent =
+        "SINGLE PLAYER · VS NOVA AI";
+
+
+      modeTopRight.textContent =
+        "// AI RACE";
+
+    }
+
+
+    // --------------------------------------------------------
+    // LOCAL 2 PLAYER
+    // --------------------------------------------------------
+
+    else {
+
+      playerTwoLabel.textContent =
+        "Player 2";
+
+
+      playerTwoControls.innerHTML =
+        "&uarr; &larr; &darr; &rarr; &nbsp;·&nbsp; Enter = Nitro";
+
+
+      modeStatus.textContent =
+        "TWO PLAYERS · ONE KEYBOARD";
+
+
+      modeTopRight.textContent =
+        "// 2 PLAYER SPLIT-SCREEN RACE";
+
+    }
+
+  }
+
+
+  modeButtons.forEach(
+    (button) => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          setGameMode(
+            button.dataset.gameMode
+          );
+
+        }
+      );
+
+    }
+  );
+
+
+  // AI selected by default.
+
+  setGameMode(
+    "ai"
+  );
 
 
   // ==========================================================
   // MAP SELECTION
   // ==========================================================
 
-  let selectedMap = DEFAULT_MAP;
+  let selectedMap =
+    DEFAULT_MAP;
 
 
-  function setMap(map) {
-    selectedMap = map;
+  function setMap(
+    map
+  ) {
 
-    mapButtons.forEach((button) => {
-      button.classList.toggle(
-        "active",
-        button.dataset.mapId === map.id
-      );
-    });
+    selectedMap =
+      map;
+
+
+    mapButtons.forEach(
+      (button) => {
+
+        button.classList.toggle(
+
+          "active",
+
+          button.dataset.mapId ===
+            map.id
+
+        );
+
+      }
+    );
+
   }
 
 
-  mapButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const map = MAPS.find(
-        (item) =>
-          item.id ===
-          button.dataset.mapId
+  mapButtons.forEach(
+    (button) => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          const map =
+            MAPS.find(
+              (item) =>
+
+                item.id ===
+                button.dataset.mapId
+            );
+
+
+          if (
+            map
+          ) {
+
+            setMap(
+              map
+            );
+
+          }
+
+        }
       );
 
-      if (map) {
-        setMap(map);
-      }
-    });
-  });
+    }
+  );
 
 
-  setMap(DEFAULT_MAP);
+  setMap(
+    DEFAULT_MAP
+  );
 
 
   // ==========================================================
   // LAP SELECTION
   // ==========================================================
 
-  const MIN_LAPS = 1;
-  const MAX_LAPS = 20;
-
-  let laps = 3;
+  const MIN_LAPS =
+    1;
 
 
-  function setLaps(value) {
-    laps = Math.min(
-      MAX_LAPS,
-      Math.max(
-        MIN_LAPS,
-        value
-      )
+  const MAX_LAPS =
+    20;
+
+
+  let laps =
+    3;
+
+
+  function setLaps(
+    value
+  ) {
+
+    laps =
+      Math.min(
+
+        MAX_LAPS,
+
+        Math.max(
+          MIN_LAPS,
+          value
+        )
+
+      );
+
+
+    lapValue.textContent =
+      laps;
+
+
+    lapChips.forEach(
+      (chip) => {
+
+        chip.classList.toggle(
+
+          "active",
+
+          Number(
+            chip.dataset.laps
+          ) ===
+            laps
+
+        );
+
+      }
     );
 
-    lapValue.textContent = laps;
-
-    lapChips.forEach((chip) => {
-      chip.classList.toggle(
-        "active",
-        Number(chip.dataset.laps) === laps
-      );
-    });
   }
 
 
   document
-    .getElementById("lap-minus")
+    .getElementById(
+      "lap-minus"
+    )
     .addEventListener(
       "click",
-      () => setLaps(laps - 1)
+      () => {
+
+        setLaps(
+          laps - 1
+        );
+
+      }
     );
 
 
   document
-    .getElementById("lap-plus")
+    .getElementById(
+      "lap-plus"
+    )
     .addEventListener(
       "click",
-      () => setLaps(laps + 1)
-    );
+      () => {
 
-
-  lapChips.forEach((chip) => {
-    chip.addEventListener(
-      "click",
-      () =>
         setLaps(
-          Number(chip.dataset.laps)
-        )
+          laps + 1
+        );
+
+      }
     );
-  });
 
 
-  setLaps(3);
+  lapChips.forEach(
+    (chip) => {
+
+      chip.addEventListener(
+        "click",
+        () => {
+
+          setLaps(
+
+            Number(
+              chip.dataset.laps
+            )
+
+          );
+
+        }
+      );
+
+    }
+  );
+
+
+  setLaps(
+    3
+  );
 
 
   // ==========================================================
   // THREE.JS SHOWROOM
   // ==========================================================
 
-  const previewScene = new THREE.Scene();
+  const previewScene =
+    new THREE.Scene();
 
-
-  // ==========================================================
-  // CAMERA
-  // ==========================================================
 
   const previewCamera =
     new THREE.PerspectiveCamera(
+
       32,
+
       container.clientWidth /
         container.clientHeight,
+
       0.1,
+
       100
+
     );
 
 
@@ -1015,28 +2031,34 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
-  // RENDERER
-  // ==========================================================
-
   const previewRenderer =
     new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
+
+      antialias:
+        true,
+
+      alpha:
+        true
+
     });
 
 
   previewRenderer.setSize(
+
     container.clientWidth,
+
     container.clientHeight
+
   );
 
 
   previewRenderer.setPixelRatio(
+
     Math.min(
       window.devicePixelRatio,
       2
     )
+
   );
 
 
@@ -1069,9 +2091,13 @@ export function setupLandingScreen(onStartRace) {
 
   const hemiLight =
     new THREE.HemisphereLight(
+
       0xb8d5ff,
+
       0x160004,
+
       2.2
+
     );
 
 
@@ -1082,8 +2108,11 @@ export function setupLandingScreen(onStartRace) {
 
   const frontLight =
     new THREE.DirectionalLight(
+
       0xffffff,
+
       3.5
+
     );
 
 
@@ -1101,9 +2130,13 @@ export function setupLandingScreen(onStartRace) {
 
   const blueLight =
     new THREE.PointLight(
+
       0x0099ff,
+
       10,
+
       9
+
     );
 
 
@@ -1121,9 +2154,13 @@ export function setupLandingScreen(onStartRace) {
 
   const redLight =
     new THREE.PointLight(
+
       0xff1f2d,
+
       13,
+
       10
+
     );
 
 
@@ -1152,22 +2189,31 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
-  // SOFT SHADOW
-  // ==========================================================
+  // ----------------------------------------------------------
+  // SHADOW
+  // ----------------------------------------------------------
 
   const shadow =
     new THREE.Mesh(
+
       new THREE.CircleGeometry(
         2.45,
         80
       ),
 
       new THREE.MeshBasicMaterial({
-        color: 0x220000,
-        transparent: true,
-        opacity: 0.28,
+
+        color:
+          0x220000,
+
+        transparent:
+          true,
+
+        opacity:
+          0.28
+
       })
+
     );
 
 
@@ -1184,12 +2230,13 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
-  // BOTTOM PLATFORM
-  // ==========================================================
+  // ----------------------------------------------------------
+  // BOTTOM FOUNDATION
+  // ----------------------------------------------------------
 
   const platformBottom =
     new THREE.Mesh(
+
       new THREE.CylinderGeometry(
         2.18,
         2.28,
@@ -1198,12 +2245,24 @@ export function setupLandingScreen(onStartRace) {
       ),
 
       new THREE.MeshPhysicalMaterial({
-        color: 0x180203,
-        metalness: 0.95,
-        roughness: 0.3,
-        clearcoat: 0.8,
-        clearcoatRoughness: 0.18,
+
+        color:
+          0x180203,
+
+        metalness:
+          0.95,
+
+        roughness:
+          0.3,
+
+        clearcoat:
+          0.8,
+
+        clearcoatRoughness:
+          0.18
+
       })
+
     );
 
 
@@ -1216,12 +2275,13 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
-  // MAIN RED PLATFORM
-  // ==========================================================
+  // ----------------------------------------------------------
+  // MAIN PLATFORM
+  // ----------------------------------------------------------
 
   const platformMain =
     new THREE.Mesh(
+
       new THREE.CylinderGeometry(
         2.02,
         2.14,
@@ -1230,12 +2290,24 @@ export function setupLandingScreen(onStartRace) {
       ),
 
       new THREE.MeshPhysicalMaterial({
-        color: 0x5f0508,
-        metalness: 0.85,
-        roughness: 0.16,
-        clearcoat: 1,
-        clearcoatRoughness: 0.05,
+
+        color:
+          0x5f0508,
+
+        metalness:
+          0.85,
+
+        roughness:
+          0.16,
+
+        clearcoat:
+          1,
+
+        clearcoatRoughness:
+          0.05
+
       })
+
     );
 
 
@@ -1248,12 +2320,13 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
-  // TOP RED PLATE
-  // ==========================================================
+  // ----------------------------------------------------------
+  // TOP PLATE
+  // ----------------------------------------------------------
 
   const platformTop =
     new THREE.Mesh(
+
       new THREE.CylinderGeometry(
         1.87,
         1.92,
@@ -1262,12 +2335,24 @@ export function setupLandingScreen(onStartRace) {
       ),
 
       new THREE.MeshPhysicalMaterial({
-        color: 0xb80e14,
-        metalness: 0.8,
-        roughness: 0.12,
-        clearcoat: 1,
-        clearcoatRoughness: 0.04,
+
+        color:
+          0xb80e14,
+
+        metalness:
+          0.8,
+
+        roughness:
+          0.12,
+
+        clearcoat:
+          1,
+
+        clearcoatRoughness:
+          0.04
+
       })
+
     );
 
 
@@ -1280,12 +2365,13 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
+  // ----------------------------------------------------------
   // CENTER PLATE
-  // ==========================================================
+  // ----------------------------------------------------------
 
   const centerPlate =
     new THREE.Mesh(
+
       new THREE.CylinderGeometry(
         1.15,
         1.2,
@@ -1294,11 +2380,21 @@ export function setupLandingScreen(onStartRace) {
       ),
 
       new THREE.MeshPhysicalMaterial({
-        color: 0x8b0b10,
-        metalness: 0.75,
-        roughness: 0.14,
-        clearcoat: 1,
+
+        color:
+          0x8b0b10,
+
+        metalness:
+          0.75,
+
+        roughness:
+          0.14,
+
+        clearcoat:
+          1
+
       })
+
     );
 
 
@@ -1311,12 +2407,13 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
-  // DARK CENTER
-  // ==========================================================
+  // ----------------------------------------------------------
+  // CENTER CORE
+  // ----------------------------------------------------------
 
   const centerCore =
     new THREE.Mesh(
+
       new THREE.CylinderGeometry(
         0.55,
         0.55,
@@ -1325,11 +2422,21 @@ export function setupLandingScreen(onStartRace) {
       ),
 
       new THREE.MeshPhysicalMaterial({
-        color: 0x120405,
-        metalness: 0.8,
-        roughness: 0.35,
-        clearcoat: 0.5,
+
+        color:
+          0x120405,
+
+        metalness:
+          0.8,
+
+        roughness:
+          0.35,
+
+        clearcoat:
+          0.5
+
       })
+
     );
 
 
@@ -1342,12 +2449,13 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
+  // ----------------------------------------------------------
   // OUTER NEON RING
-  // ==========================================================
+  // ----------------------------------------------------------
 
   const neonRingOuter =
     new THREE.Mesh(
+
       new THREE.TorusGeometry(
         1.88,
         0.03,
@@ -1356,8 +2464,12 @@ export function setupLandingScreen(onStartRace) {
       ),
 
       new THREE.MeshBasicMaterial({
-        color: 0xff3b3b,
+
+        color:
+          0xff3b3b
+
       })
+
     );
 
 
@@ -1374,12 +2486,13 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
+  // ----------------------------------------------------------
   // INNER NEON RING
-  // ==========================================================
+  // ----------------------------------------------------------
 
   const neonRingInner =
     new THREE.Mesh(
+
       new THREE.TorusGeometry(
         1.18,
         0.018,
@@ -1388,8 +2501,12 @@ export function setupLandingScreen(onStartRace) {
       ),
 
       new THREE.MeshBasicMaterial({
-        color: 0xff5a5a,
+
+        color:
+          0xff5a5a
+
       })
+
     );
 
 
@@ -1406,12 +2523,13 @@ export function setupLandingScreen(onStartRace) {
   );
 
 
-  // ==========================================================
+  // ----------------------------------------------------------
   // LOWER RING
-  // ==========================================================
+  // ----------------------------------------------------------
 
   const lowerRing =
     new THREE.Mesh(
+
       new THREE.TorusGeometry(
         2.05,
         0.02,
@@ -1420,8 +2538,12 @@ export function setupLandingScreen(onStartRace) {
       ),
 
       new THREE.MeshBasicMaterial({
-        color: 0x7a0006,
+
+        color:
+          0x7a0006
+
       })
+
     );
 
 
@@ -1439,7 +2561,7 @@ export function setupLandingScreen(onStartRace) {
 
 
   // ==========================================================
-  // PLATFORM ACCENT LIGHTS
+  // PLATFORM ACCENTS
   // ==========================================================
 
   const accentGroup =
@@ -1461,7 +2583,10 @@ export function setupLandingScreen(onStartRace) {
 
   const accentMat =
     new THREE.MeshBasicMaterial({
-      color: 0xff4040,
+
+      color:
+        0xff4040
+
     });
 
 
@@ -1470,6 +2595,7 @@ export function setupLandingScreen(onStartRace) {
     i < 18;
     i++
   ) {
+
     const accent =
       new THREE.Mesh(
         accentGeo,
@@ -1478,7 +2604,12 @@ export function setupLandingScreen(onStartRace) {
 
 
     const angle =
-      (i / 18) *
+
+      (
+        i /
+        18
+      ) *
+
       Math.PI *
       2;
 
@@ -1488,13 +2619,19 @@ export function setupLandingScreen(onStartRace) {
 
 
     accent.position.set(
-      Math.cos(angle) *
-        radius,
+
+      Math.cos(
+        angle
+      ) *
+      radius,
 
       -0.02,
 
-      Math.sin(angle) *
-        radius
+      Math.sin(
+        angle
+      ) *
+      radius
+
     );
 
 
@@ -1513,6 +2650,7 @@ export function setupLandingScreen(onStartRace) {
     accentGroup.add(
       accent
     );
+
   }
 
 
@@ -1533,9 +2671,11 @@ export function setupLandingScreen(onStartRace) {
 
 
   loader.load(
+
     CAR_URL,
 
     (gltf) => {
+
       previewCar =
         gltf.scene;
 
@@ -1563,12 +2703,14 @@ export function setupLandingScreen(onStartRace) {
       previewScene.add(
         previewCar
       );
+
     }
+
   );
 
 
   // ==========================================================
-  // ANIMATION
+  // SHOWROOM ANIMATION
   // ==========================================================
 
   let previewRunning =
@@ -1576,8 +2718,13 @@ export function setupLandingScreen(onStartRace) {
 
 
   function animatePreview() {
-    if (!previewRunning) {
+
+    if (
+      !previewRunning
+    ) {
+
       return;
+
     }
 
 
@@ -1586,17 +2733,23 @@ export function setupLandingScreen(onStartRace) {
     );
 
 
-    if (previewCar) {
+    if (
+      previewCar
+    ) {
+
       previewCar.rotation.y +=
         0.004;
 
 
       previewWheels.forEach(
         (wheel) => {
+
           wheel.rotation.x +=
             0.055;
+
         }
       );
+
     }
 
 
@@ -1617,9 +2770,13 @@ export function setupLandingScreen(onStartRace) {
 
 
     previewRenderer.render(
+
       previewScene,
+
       previewCamera
+
     );
+
   }
 
 
@@ -1627,10 +2784,11 @@ export function setupLandingScreen(onStartRace) {
 
 
   // ==========================================================
-  // RESPONSIVE THREE.JS PREVIEW
+  // RESPONSIVE
   // ==========================================================
 
   function resizePreview() {
+
     const width =
       container.clientWidth;
 
@@ -1639,8 +2797,19 @@ export function setupLandingScreen(onStartRace) {
       container.clientHeight;
 
 
+    if (
+      width <= 0 ||
+      height <= 0
+    ) {
+
+      return;
+
+    }
+
+
     previewCamera.aspect =
-      width / height;
+      width /
+      height;
 
 
     previewCamera
@@ -1651,6 +2820,7 @@ export function setupLandingScreen(onStartRace) {
       width,
       height
     );
+
   }
 
 
@@ -1665,19 +2835,30 @@ export function setupLandingScreen(onStartRace) {
   // ==========================================================
 
   function closeLanding() {
+
     unlockAudio();
 
 
     landing.classList.add(
+
       "opacity-0",
+
       "pointer-events-none"
+
     );
 
 
     setTimeout(
       () => {
+
         previewRunning =
           false;
+
+
+        window.removeEventListener(
+          "resize",
+          resizePreview
+        );
 
 
         previewRenderer.dispose();
@@ -1686,14 +2867,36 @@ export function setupLandingScreen(onStartRace) {
         landing.remove();
 
 
+        // ====================================================
+        // AI:
+        //
+        // mode = "ai"
+        // difficulty = "hard"
+        //
+        // LOCAL:
+        //
+        // mode = "local"
+        // difficulty value is ignored by gameplay.
+        // ====================================================
+
         onStartRace(
+
           laps,
-          selectedMap
+
+          selectedMap,
+
+          gameMode,
+
+          aiDifficulty
+
         );
+
       },
 
       700
+
     );
+
   }
 
 
@@ -1701,4 +2904,5 @@ export function setupLandingScreen(onStartRace) {
     "click",
     closeLanding
   );
+
 }
