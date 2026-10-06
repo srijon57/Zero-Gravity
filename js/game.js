@@ -1,7 +1,15 @@
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { scene, renderer } from "./scene.js";
-import { roadUniforms } from "./road.js";
-import "./lights.js";
+import { Road } from "./road.js";
+import { Minimap } from "./minimap.js";
+import {
+  setupLights,
+  updateMapLights
+} from "./lights.js";
+
+import {
+  DEFAULT_MAP
+} from "./maps/maps.js";
 import { CAR_URL } from "./assets.js";
 import { CONTROLS, setInputEnabled } from "./input.js";
 import { Player, buildCar, resolveCarCollision, MAX_SPEED } from "./player.js";
@@ -31,36 +39,104 @@ const PLAYER_SPECS = [
 
 export class Game {
   constructor() {
-    this.state = "idle"; // idle | countdown | racing | finished
-    this.totalLaps = 3;
-    this.raceTime = 0;
-    this.countdown = 3;
-    this.goTimer = 0;
-    this.endTimer = 0;
-    this.winner = null;
 
-    // Preload the car model while the landing page is showing
-    this.ready = new GLTFLoader().loadAsync(CAR_URL).then((gltf) => this.setup(gltf.scene));
-  }
+  // =========================
+  // MAP + ROAD
+  // =========================
 
-  setup(template) {
-    this.players = PLAYER_SPECS.map((spec) => {
-      const model = buildCar(template, spec.style);
-      return new Player({ ...spec, model });
+  this.map = DEFAULT_MAP;
+
+  this.road = new Road(this.map);
+
+  setupLights(this.road);
+
+
+  // =========================
+  // GAME STATE
+  // =========================
+
+  this.state = "idle"; // idle | countdown | racing | finished
+
+  this.totalLaps = 3;
+  this.raceTime = 0;
+  this.countdown = 3;
+  this.goTimer = 0;
+  this.endTimer = 0;
+  this.winner = null;
+
+
+  // Preload the car model while landing page is showing
+  this.ready = new GLTFLoader()
+    .loadAsync(CAR_URL)
+    .then((gltf) =>
+      this.setup(gltf.scene)
+    );
+
+}
+
+setup(template) {
+
+  this.players = PLAYER_SPECS.map((spec) => {
+
+    const model =
+      buildCar(
+        template,
+        spec.style
+      );
+
+
+    return new Player({
+
+      ...spec,
+
+      model,
+
+      road: this.road
+
     });
 
-    this.cameras = this.players.map(() => new ChaseCamera());
-    this.views = new SplitScreen(
+  });
+
+
+  this.cameras =
+    this.players.map(
+      () => new ChaseCamera()
+    );
+
+
+  this.views =
+    new SplitScreen(
       renderer,
       scene,
-      this.cameras.map((c) => c.camera)
+      this.cameras.map(
+        (c) => c.camera
+      )
     );
-    this.hud = new Hud(this.players);
 
-    // Engine sounds are created lazily (see start()) since the AudioContext
-    // must not be built before a real user gesture unlocks it.
-    this.engineSounds = null;
+
+  this.hud = new Hud(this.players);
+
+  this.minimap = new Minimap(this.road, this.players);
+
+  this.engineSounds = null;
+
+}
+
+setMap(mapConfig) {
+  this.map = mapConfig;
+
+  this.road.setMap(mapConfig);
+  updateMapLights(this.road);
+
+  this.minimap?.setRoad(this.road);
+
+  if (this.players && this.cameras) {
+    this.players.forEach((player, index) => {
+      player.reset();
+      this.cameras[index].update(player, 0, true);
+    });
   }
+}
 
   start(laps) {
     this.totalLaps = laps;
@@ -73,7 +149,7 @@ export class Game {
 
     this.hud.hideResults();
     setInputEnabled(true);
-
+    this.minimap.show();
     if (!this.engineSounds) {
       // First race after the audio-unlocking click on the landing page
       this.engineSounds = this.players.map((_, i) => new EngineSound(i === 0 ? -0.25 : 0.25));
@@ -86,6 +162,7 @@ export class Game {
       this.cameras[i].update(p, 0, true);
       this.hud.setMessage(i, "");
     });
+    this.minimap.update();
   }
 
   rank(player) {
@@ -99,7 +176,7 @@ export class Game {
     if (this.state === "idle") return;
     dt = Math.min(dt, 0.05);
 
-    roadUniforms.uTime.value += dt * 0.5;
+    this.road.update(dt);
 
     // ---- race state ----
     if (this.state === "countdown") {
@@ -242,7 +319,9 @@ export class Game {
 
   render(dt) {
     if (this.state === "idle") return;
+
     this.views.render(dt);
+    this.minimap?.update();
   }
 }
 
