@@ -1493,48 +1493,53 @@ else {
 // CAR-TO-CAR COLLISION
 // ============================================================
 
-export function resolveCarCollision(
-  a,
-  b
-) {
+// ============================================================
+// CAR-TO-CAR COLLISION
+// ============================================================
+//
+// Arcade-style collision:
+//
+// - Cars are separated so they cannot remain deeply overlapped.
+// - Rear impacts transfer momentum instead of killing speed.
+// - Side contact does NOT continuously brake both cars.
+// - Gentle pushing does not repeatedly trigger impact sounds.
+//
+// Returns impact strength for sound effects.
+//
+// ============================================================
 
-  const LEN =
-    1.2;
+export function resolveCarCollision(a, b) {
+
+  const LEN = 1.2;
+  const WID = 0.66;
+
+  // Tiny extra separation prevents the two hitboxes
+  // from remaining exactly on the collision boundary.
+  const SEPARATION_EPSILON = 0.015;
 
 
-  const WID =
-    0.66;
-
+  // ----------------------------------------------------------
+  // Distance in track coordinates
+  // ----------------------------------------------------------
 
   const dLong =
-
-    (
-      b.total -
-      a.total
-    ) *
-
+    (b.total - a.total) *
     a.road.trackLength;
 
 
   const dLat =
-
-    b.lat -
-
-    a.lat;
+    b.lat - a.lat;
 
 
   const ax =
-    Math.abs(
-      dLong
-    );
+    Math.abs(dLong);
 
 
   const ay =
-    Math.abs(
-      dLat
-    );
+    Math.abs(dLat);
 
 
+  // No overlap.
   if (
     ax >= LEN ||
     ay >= WID
@@ -1546,28 +1551,22 @@ export function resolveCarCollision(
 
 
   const penLong =
-    LEN -
-    ax;
+    LEN - ax;
 
 
   const penLat =
-    WID -
-    ay;
+    WID - ay;
 
 
-  const impactSpeed =
-
+  // Relative speed before resolving the collision.
+  const relativeSpeed =
     Math.abs(
       a.speed -
       b.speed
-    ) +
+    );
 
-    Math.min(
-      Math.abs(a.speed),
-      Math.abs(b.speed)
-    ) *
 
-    0.4;
+  let impactSpeed = 0;
 
 
   // ==========================================================
@@ -1575,22 +1574,16 @@ export function resolveCarCollision(
   // ==========================================================
 
   if (
-
-    penLat /
-    WID <
-
-    penLong /
-    LEN
-
+    penLat / WID <
+    penLong / LEN
   ) {
 
-    const s =
+    const side =
 
       dLat === 0
 
         ? (
-            a.id <
-            b.id
+            a.id < b.id
               ? 1
               : -1
           )
@@ -1600,98 +1593,174 @@ export function resolveCarCollision(
           );
 
 
-    a.lat -=
+    const push =
 
       (
-        s *
-        penLat
-      ) /
-      2;
+        penLat +
+        SEPARATION_EPSILON
+      ) / 2;
+
+
+    // Push sideways only.
+    //
+    // IMPORTANT:
+    // We do NOT destroy forward speed here.
+
+    a.lat -=
+      side * push;
 
 
     b.lat +=
-
-      (
-        s *
-        penLat
-      ) /
-      2;
+      side * push;
 
 
     a.clampToWalls();
-
     b.clampToWalls();
+
+
+    // Only a noticeable relative-speed sideswipe
+    // should count as an impact.
+
+    impactSpeed =
+      relativeSpeed * 0.35;
 
   }
 
 
   // ==========================================================
-  // REAR CONTACT
+  // FRONT / REAR CONTACT
   // ==========================================================
 
   else {
 
-    const s =
+    const direction =
 
       dLong >= 0
+
         ? 1
+
         : -1;
 
 
-    const rear =
+    // Physically separate the cars first.
 
-      s > 0
-        ? a
-        : b;
+    const push =
 
-
-    const front =
-
-      s > 0
-        ? b
-        : a;
-
-
-    rear.advance(
-
-      -penLong /
-      2
-
-    );
-
-
-    front.advance(
-
-      penLong /
-      2
-
-    );
+      (
+        penLong +
+        SEPARATION_EPSILON
+      ) / 2;
 
 
     if (
-      rear.speed >
-      front.speed
+      direction > 0
     ) {
 
-      const diff =
+      // A is behind B.
 
-        rear.speed -
-
-        front.speed;
-
-
-      rear.speed =
-
-        front.speed +
-
-        diff *
-        0.15;
+      a.advance(
+        -push
+      );
 
 
-      front.speed +=
+      b.advance(
+        push
+      );
 
-        diff *
-        0.3;
+    }
+
+    else {
+
+      // B is behind A.
+
+      b.advance(
+        -push
+      );
+
+
+      a.advance(
+        push
+      );
+
+    }
+
+
+    // --------------------------------------------------------
+    // MOMENTUM TRANSFER
+    // --------------------------------------------------------
+    //
+    // Instead of:
+    //
+    // speed *= 0.88
+    //
+    // every frame, both cars move toward a shared velocity.
+    //
+    // The vehicle physically ahead receives a tiny extra
+    // separation velocity so they do not instantly collide
+    // again.
+    // --------------------------------------------------------
+
+    if (
+      relativeSpeed > 0.05
+    ) {
+
+      impactSpeed =
+        relativeSpeed;
+
+
+      const averageSpeed =
+
+        (
+          a.speed +
+          b.speed
+        ) / 2;
+
+
+      const separationSpeed =
+
+        Math.min(
+
+          0.25,
+
+          0.03 +
+
+          relativeSpeed *
+          0.08
+
+        );
+
+
+      if (
+        direction > 0
+      ) {
+
+        // B is ahead.
+
+        a.speed =
+          averageSpeed -
+          separationSpeed;
+
+
+        b.speed =
+          averageSpeed +
+          separationSpeed;
+
+      }
+
+      else {
+
+        // A is ahead.
+
+        a.speed =
+          averageSpeed +
+          separationSpeed;
+
+
+        b.speed =
+          averageSpeed -
+          separationSpeed;
+
+      }
 
     }
 
@@ -1699,15 +1768,19 @@ export function resolveCarCollision(
 
 
   // ==========================================================
-  // COLLISION SPEED LOSS
+  // IMPACT SOUND
+  // ==========================================================
+  //
+  // Tiny continuous contact should not spam collision sounds.
   // ==========================================================
 
-  a.speed *=
-    0.88;
+  if (
+    impactSpeed < 0.12
+  ) {
 
+    return 0;
 
-  b.speed *=
-    0.88;
+  }
 
 
   const impact =
@@ -1716,10 +1789,9 @@ export function resolveCarCollision(
 
       1,
 
-      0.15 +
+      0.10 +
 
-      impactSpeed /
-      10
+      impactSpeed / 8
 
     );
 
@@ -1727,22 +1799,16 @@ export function resolveCarCollision(
   a.impactThisFrame =
 
     Math.max(
-
       a.impactThisFrame,
-
       impact
-
     );
 
 
   b.impactThisFrame =
 
     Math.max(
-
       b.impactThisFrame,
-
       impact
-
     );
 
 

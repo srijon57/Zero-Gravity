@@ -131,6 +131,61 @@ export class Game {
     this.endTimer = 0;
     this.winner = null;
 
+    // =========================
+// PAUSE STATE
+// =========================
+
+this.paused = false;
+
+
+// =========================
+// ESCAPE KEY
+// =========================
+
+this._escapeHandler = (event) => {
+
+  if (
+    event.code !== "Escape" ||
+    event.repeat
+  ) {
+    return;
+  }
+
+
+  // Ignore ESC on landing/results.
+
+  if (
+    this.state === "idle" ||
+    this.state === "finished"
+  ) {
+    return;
+  }
+
+
+  event.preventDefault();
+
+
+  if (
+    this.paused
+  ) {
+
+    this.resumeGame();
+
+  }
+
+  else {
+
+    this.pauseGame();
+
+  }
+
+};
+
+
+window.addEventListener(
+  "keydown",
+  this._escapeHandler
+);
 
     // Preload the car model while landing page is showing
     this.ready = new GLTFLoader()
@@ -508,46 +563,7 @@ this.hud.hidePauseMenu();
     this.paused = false;
 
 
-    window.addEventListener(
-      "keydown",
-      (event) => {
 
-        if (
-          event.code !== "Escape" ||
-          event.repeat
-        ) {
-          return;
-        }
-
-
-        // Don't open pause menu
-        // while we're on landing/results.
-
-        if (
-          this.state === "idle" ||
-          this.state === "finished"
-        ) {
-          return;
-        }
-
-
-        event.preventDefault();
-
-
-        if (this.paused) {
-
-          this.resumeGame();
-
-        }
-
-        else {
-
-          this.pauseGame();
-
-        }
-
-      }
-    );
 
     this.state = "countdown";
     this.aiController.reset();
