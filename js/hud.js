@@ -77,7 +77,147 @@ export class Hud {
 
     document.body.appendChild(this.root);
     this.results = null;
+    this.pauseMenu = null;
   }
+
+  // ==========================================================
+// PAUSE MENU
+// ==========================================================
+
+showPauseMenu({
+  onResume,
+  onRestart,
+  onMenu
+}) {
+
+  this.hidePauseMenu();
+
+
+  const overlay =
+    document.createElement(
+      "div"
+    );
+
+
+  overlay.className =
+    "pause-overlay";
+
+
+  overlay.innerHTML = `
+
+    <div class="pause-card">
+
+      <div class="pause-kicker">
+        ZERO GRAVITY
+      </div>
+
+
+      <h2>
+        PAUSED
+      </h2>
+
+
+      <div class="pause-line">
+      </div>
+
+
+      <div class="pause-buttons">
+
+        <button
+          type="button"
+          data-pause-action="resume"
+        >
+          RESUME
+        </button>
+
+
+        <button
+          type="button"
+          data-pause-action="restart"
+        >
+          RESTART
+        </button>
+
+
+        <button
+          type="button"
+          class="pause-menu-button"
+          data-pause-action="menu"
+        >
+          MAIN MENU
+        </button>
+
+      </div>
+
+
+      <div class="pause-hint">
+        ESC · RESUME
+      </div>
+
+    </div>
+
+  `;
+
+
+  overlay
+    .querySelector(
+      '[data-pause-action="resume"]'
+    )
+    .addEventListener(
+      "click",
+      onResume
+    );
+
+
+  overlay
+    .querySelector(
+      '[data-pause-action="restart"]'
+    )
+    .addEventListener(
+      "click",
+      onRestart
+    );
+
+
+  overlay
+    .querySelector(
+      '[data-pause-action="menu"]'
+    )
+    .addEventListener(
+      "click",
+      onMenu
+    );
+
+
+  document.body.appendChild(
+    overlay
+  );
+
+
+  this.pauseMenu =
+    overlay;
+
+}
+
+
+// ==========================================================
+// HIDE PAUSE MENU
+// ==========================================================
+
+hidePauseMenu() {
+
+  if (
+    this.pauseMenu
+  ) {
+
+    this.pauseMenu.remove();
+
+    this.pauseMenu =
+      null;
+
+  }
+
+}
 
   setMode(mode) {
 

@@ -34,73 +34,7 @@ import {
 // L3 = hardest.
 // ============================================================
 
-function getMapLevel(map) {
 
-  const name =
-    String(
-      map.name || ""
-    )
-      .trim()
-      .toLowerCase();
-
-
-  if (
-    name.includes("meteor rift")
-  ) {
-
-    return 1;
-
-  }
-
-
-  if (
-    name.includes("event horizon")
-  ) {
-
-    return 2;
-
-  }
-
-
-  if (
-    name.includes("nebula")
-  ) {
-
-    return 3;
-
-  }
-
-
-  // Fallback for any other map.
-
-  const originalLevel =
-    Number(
-      map.difficulty
-    );
-
-
-  if (
-    Number.isFinite(
-      originalLevel
-    )
-  ) {
-
-    return Math.min(
-      3,
-      Math.max(
-        1,
-        Math.round(
-          originalLevel
-        )
-      )
-    );
-
-  }
-
-
-  return 1;
-
-}
 
 
 // ============================================================
@@ -1203,7 +1137,7 @@ export function setupLandingScreen(
                 tracking-[0.2em]
                 text-white/20
               ">
-                L1 → L3
+                L1 → L5
               </span>
 
             </div>
@@ -1220,12 +1154,10 @@ export function setupLandingScreen(
             ">
 
               ${MAPS.map(
-                (map) => {
+  (map, index) => {
 
-                  const level =
-                    getMapLevel(
-                      map
-                    );
+    const level =
+      index + 1;
 
 
                   return `
