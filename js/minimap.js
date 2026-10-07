@@ -7,56 +7,30 @@ const AHEAD_SAMPLES = 50;
 const AHEAD_DISTANCE = 0.14;
 
 
+// ============================================================
+// MINIMAP
+// ============================================================
+
 export class Minimap {
-
-  // ==========================================================
-  // CONSTRUCTOR
-  // ==========================================================
-
   constructor(road, players) {
-
     this.road = road;
-
     this.players = players;
-
-    // local = 2 player split-screen
-    // ai    = single player vs AI
     this.mode = "local";
 
-
-    // --------------------------------------------------------
-    // Create the two minimaps
-    // --------------------------------------------------------
-
     this.canvases = [
-
-      this.createCanvas(
-        "52px"
-      ),
-
-      this.createCanvas(
-        "calc(50% + 52px)"
-      )
-
+      this.createCanvas("52px"),
+      this.createCanvas("calc(50% + 52px)"),
     ];
 
-
-    this.contexts =
-      this.canvases.map(
-        (canvas) =>
-          canvas.getContext("2d")
-      );
-
+    this.contexts = this.canvases.map(
+      (canvas) => canvas.getContext("2d")
+    );
 
     this.trackPoints = [];
-
     this.visible = false;
 
-
     this.buildTrack();
-
     this.hide();
-
   }
 
 
@@ -65,38 +39,15 @@ export class Minimap {
   // ==========================================================
 
   setMode(mode) {
+    this.mode = mode === "ai" ? "ai" : "local";
 
-    this.mode =
-      mode === "ai"
-        ? "ai"
-        : "local";
+    if (!this.visible) return;
 
-
-    // If minimap is currently hidden,
-    // show() will use this.mode later.
-    if (!this.visible) {
-      return;
-    }
-
-
-    // Player 1 minimap is always visible.
-    this.canvases[0]
-      .style
-      .display = "block";
-
-
-    // Player 2 gets its own minimap
-    // only in local multiplayer.
-    this.canvases[1]
-      .style
-      .display =
-        this.mode === "ai"
-          ? "none"
-          : "block";
-
+    this.canvases[0].style.display = "block";
+    this.canvases[1].style.display =
+      this.mode === "ai" ? "none" : "block";
 
     this.update();
-
   }
 
 
@@ -105,81 +56,27 @@ export class Minimap {
   // ==========================================================
 
   createCanvas(top) {
+    const canvas = document.createElement("canvas");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
-    const canvas =
-      document.createElement(
-        "canvas"
-      );
+    canvas.width = MAP_WIDTH * dpr;
+    canvas.height = MAP_HEIGHT * dpr;
 
+    canvas.style.position = "fixed";
+    canvas.style.top = top;
+    canvas.style.left = "18px";
+    canvas.style.width = `${MAP_WIDTH}px`;
+    canvas.style.height = `${MAP_HEIGHT}px`;
+    canvas.style.zIndex = "20";
+    canvas.style.pointerEvents = "none";
+    canvas.style.borderRadius = "12px";
 
-    const dpr =
-      Math.min(
-        window.devicePixelRatio || 1,
-        2
-      );
+    document.body.appendChild(canvas);
 
-
-    canvas.width =
-      MAP_WIDTH * dpr;
-
-
-    canvas.height =
-      MAP_HEIGHT * dpr;
-
-
-    canvas.style.position =
-      "fixed";
-
-
-    canvas.style.top =
-      top;
-
-
-    canvas.style.left =
-      "18px";
-
-
-    canvas.style.width =
-      `${MAP_WIDTH}px`;
-
-
-    canvas.style.height =
-      `${MAP_HEIGHT}px`;
-
-
-    canvas.style.zIndex =
-      "20";
-
-
-    canvas.style.pointerEvents =
-      "none";
-
-
-    canvas.style.borderRadius =
-      "12px";
-
-
-    document.body.appendChild(
-      canvas
-    );
-
-
-    const ctx =
-      canvas.getContext("2d");
-
-
-    ctx.setTransform(
-      dpr,
-      0,
-      0,
-      dpr,
-      0,
-      0
-    );
-
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     return canvas;
-
   }
 
 
@@ -188,11 +85,8 @@ export class Minimap {
   // ==========================================================
 
   setRoad(road) {
-
     this.road = road;
-
     this.buildTrack();
-
   }
 
 
@@ -201,11 +95,7 @@ export class Minimap {
   // ==========================================================
 
   wrapProgress(progress) {
-
-    return (
-      (progress % 1) + 1
-    ) % 1;
-
+    return ((progress % 1) + 1) % 1;
   }
 
 
@@ -214,286 +104,118 @@ export class Minimap {
   // ==========================================================
 
   buildTrack() {
-
     this.trackPoints = [];
 
-
-    for (
-      let i = 0;
-      i <= TRACK_SAMPLES;
-      i++
-    ) {
-
-      const t =
-        i / TRACK_SAMPLES;
-
-
-      const point =
-        this.road.spline
-          .getPointAt(t);
-
+    for (let i = 0; i <= TRACK_SAMPLES; i++) {
+      const t = i / TRACK_SAMPLES;
+      const point = this.road.spline.getPointAt(t);
 
       this.trackPoints.push({
-
         t,
-
         x: point.x,
-
-        z: point.z
-
+        z: point.z,
       });
-
     }
-
   }
 
 
   // ==========================================================
-  // BUILD PLAYER-CENTERED MINIMAP VIEW
+  // BUILD PLAYER-CENTERED VIEW
   // ==========================================================
 
   buildView(player) {
+    const progress = this.wrapProgress(player.progress);
+    const frame = this.road.getRoadFrame(progress);
 
-    const progress =
-      this.wrapProgress(
-        player.progress
-      );
-
-
-    const frame =
-      this.road.getRoadFrame(
-        progress
-      );
-
-
-    // --------------------------------------------------------
-    // Forward direction
-    // --------------------------------------------------------
-
-    let forwardX =
-      frame.tangent.x;
-
-
-    let forwardZ =
-      frame.tangent.z;
-
+    let forwardX = frame.tangent.x;
+    let forwardZ = frame.tangent.z;
 
     const forwardLength =
-      Math.hypot(
-        forwardX,
-        forwardZ
-      ) || 1;
+      Math.hypot(forwardX, forwardZ) || 1;
 
+    forwardX /= forwardLength;
+    forwardZ /= forwardLength;
 
-    forwardX /=
-      forwardLength;
-
-
-    forwardZ /=
-      forwardLength;
-
-
-    // --------------------------------------------------------
-    // Right direction
-    //
-    // -frame.right matches the player's
-    // visual screen-right direction.
-    // --------------------------------------------------------
-
-    let rightX =
-      -frame.right.x;
-
-
-    let rightZ =
-      -frame.right.z;
-
+    let rightX = -frame.right.x;
+    let rightZ = -frame.right.z;
 
     const rightLength =
-      Math.hypot(
-        rightX,
-        rightZ
-      ) || 1;
+      Math.hypot(rightX, rightZ) || 1;
 
+    rightX /= rightLength;
+    rightZ /= rightLength;
 
-    rightX /=
-      rightLength;
+    let minSide = Infinity;
+    let maxSide = -Infinity;
+    let minForward = Infinity;
+    let maxForward = -Infinity;
 
-
-    rightZ /=
-      rightLength;
-
-
-    // --------------------------------------------------------
-    // Determine bounds
-    // --------------------------------------------------------
-
-    let minSide =
-      Infinity;
-
-
-    let maxSide =
-      -Infinity;
-
-
-    let minForward =
-      Infinity;
-
-
-    let maxForward =
-      -Infinity;
-
-
-    for (
-      const point
-      of this.trackPoints
-    ) {
-
-      const dx =
-        point.x -
-        frame.center.x;
-
-
-      const dz =
-        point.z -
-        frame.center.z;
-
+    for (const point of this.trackPoints) {
+      const dx = point.x - frame.center.x;
+      const dz = point.z - frame.center.z;
 
       const side =
         dx * rightX +
         dz * rightZ;
 
-
       const forward =
         dx * forwardX +
         dz * forwardZ;
 
-
-      minSide =
-        Math.min(
-          minSide,
-          side
-        );
-
-
-      maxSide =
-        Math.max(
-          maxSide,
-          side
-        );
-
-
-      minForward =
-        Math.min(
-          minForward,
-          forward
-        );
-
-
-      maxForward =
-        Math.max(
-          maxForward,
-          forward
-        );
-
+      minSide = Math.min(minSide, side);
+      maxSide = Math.max(maxSide, side);
+      minForward = Math.min(minForward, forward);
+      maxForward = Math.max(maxForward, forward);
     }
 
+    const worldWidth = Math.max(
+      maxSide - minSide,
+      1
+    );
 
-    // --------------------------------------------------------
-    // Scale map into canvas
-    // --------------------------------------------------------
-
-    const worldWidth =
-      Math.max(
-        maxSide - minSide,
-        1
-      );
-
-
-    const worldHeight =
-      Math.max(
-        maxForward - minForward,
-        1
-      );
-
+    const worldHeight = Math.max(
+      maxForward - minForward,
+      1
+    );
 
     const availableWidth =
-      MAP_WIDTH -
-      PADDING * 2;
-
+      MAP_WIDTH - PADDING * 2;
 
     const availableHeight =
-      MAP_HEIGHT -
-      PADDING * 2;
+      MAP_HEIGHT - PADDING * 2;
 
+    const scale = Math.min(
+      availableWidth / worldWidth,
+      availableHeight / worldHeight
+    );
 
-    const scale =
-      Math.min(
-
-        availableWidth /
-          worldWidth,
-
-        availableHeight /
-          worldHeight
-
-      );
-
-
-    const drawnWidth =
-      worldWidth *
-      scale;
-
-
-    const drawnHeight =
-      worldHeight *
-      scale;
-
+    const drawnWidth = worldWidth * scale;
+    const drawnHeight = worldHeight * scale;
 
     const leftPadding =
-      (
-        MAP_WIDTH -
-        drawnWidth
-      ) / 2;
-
+      (MAP_WIDTH - drawnWidth) / 2;
 
     const topPadding =
-      (
-        MAP_HEIGHT -
-        drawnHeight
-      ) / 2;
-
+      (MAP_HEIGHT - drawnHeight) / 2;
 
     const offsetX =
       leftPadding -
-      minSide *
-      scale;
-
+      minSide * scale;
 
     const offsetY =
       topPadding +
-      maxForward *
-      scale;
-
+      maxForward * scale;
 
     return {
-
       frame,
-
       forwardX,
-
       forwardZ,
-
       rightX,
-
       rightZ,
-
       scale,
-
       offsetX,
-
-      offsetY
-
+      offsetY,
     };
-
   }
 
 
@@ -501,46 +223,22 @@ export class Minimap {
   // WORLD POSITION -> MINIMAP POSITION
   // ==========================================================
 
-  worldToMap(
-    x,
-    z,
-    view
-  ) {
-
-    const dx =
-      x -
-      view.frame.center.x;
-
-
-    const dz =
-      z -
-      view.frame.center.z;
-
+  worldToMap(x, z, view) {
+    const dx = x - view.frame.center.x;
+    const dz = z - view.frame.center.z;
 
     const side =
       dx * view.rightX +
       dz * view.rightZ;
 
-
     const forward =
       dx * view.forwardX +
       dz * view.forwardZ;
 
-
     return {
-
-      x:
-        view.offsetX +
-        side *
-        view.scale,
-
-      y:
-        view.offsetY -
-        forward *
-        view.scale
-
+      x: view.offsetX + side * view.scale,
+      y: view.offsetY - forward * view.scale,
     };
-
   }
 
 
@@ -549,7 +247,6 @@ export class Minimap {
   // ==========================================================
 
   drawBackground(ctx) {
-
     ctx.clearRect(
       0,
       0,
@@ -557,10 +254,7 @@ export class Minimap {
       MAP_HEIGHT
     );
 
-
-    ctx.fillStyle =
-      "rgba(4, 6, 18, 0.80)";
-
+    ctx.fillStyle = "rgba(4, 6, 18, 0.80)";
 
     ctx.fillRect(
       0,
@@ -569,14 +263,8 @@ export class Minimap {
       MAP_HEIGHT
     );
 
-
-    ctx.strokeStyle =
-      "rgba(120, 180, 255, 0.35)";
-
-
-    ctx.lineWidth =
-      1;
-
+    ctx.strokeStyle = "rgba(120, 180, 255, 0.35)";
+    ctx.lineWidth = 1;
 
     ctx.strokeRect(
       0.5,
@@ -584,7 +272,6 @@ export class Minimap {
       MAP_WIDTH - 1,
       MAP_HEIGHT - 1
     );
-
   }
 
 
@@ -592,92 +279,42 @@ export class Minimap {
   // FULL TRACK
   // ==========================================================
 
-  drawTrack(
-    ctx,
-    view
-  ) {
-
-    if (
-      !this.trackPoints.length
-    ) {
-      return;
-    }
-
+  drawTrack(ctx, view) {
+    if (!this.trackPoints.length) return;
 
     ctx.beginPath();
 
+    this.trackPoints.forEach((point, index) => {
+      const mapPoint = this.worldToMap(
+        point.x,
+        point.z,
+        view
+      );
 
-    this.trackPoints.forEach(
-      (point, index) => {
-
-        const mapPoint =
-          this.worldToMap(
-            point.x,
-            point.z,
-            view
-          );
-
-
-        if (
-          index === 0
-        ) {
-
-          ctx.moveTo(
-            mapPoint.x,
-            mapPoint.y
-          );
-
-        }
-
-        else {
-
-          ctx.lineTo(
-            mapPoint.x,
-            mapPoint.y
-          );
-
-        }
-
+      if (index === 0) {
+        ctx.moveTo(
+          mapPoint.x,
+          mapPoint.y
+        );
+      } else {
+        ctx.lineTo(
+          mapPoint.x,
+          mapPoint.y
+        );
       }
-    );
-
+    });
 
     ctx.closePath();
 
-
-    // Thick background track
-
-    ctx.strokeStyle =
-      "rgba(255, 255, 255, 0.18)";
-
-
-    ctx.lineWidth =
-      9;
-
-
-    ctx.lineJoin =
-      "round";
-
-
-    ctx.lineCap =
-      "round";
-
-
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.18)";
+    ctx.lineWidth = 9;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
     ctx.stroke();
 
-
-    // Cyan track line
-
-    ctx.strokeStyle =
-      "rgba(90, 190, 255, 0.75)";
-
-
-    ctx.lineWidth =
-      2.5;
-
-
+    ctx.strokeStyle = "rgba(90, 190, 255, 0.75)";
+    ctx.lineWidth = 2.5;
     ctx.stroke();
-
   }
 
 
@@ -685,96 +322,48 @@ export class Minimap {
   // ROAD AHEAD
   // ==========================================================
 
-  drawRoadAhead(
-    ctx,
-    player,
-    view
-  ) {
-
-    const progress =
-      this.wrapProgress(
-        player.progress
-      );
-
+  drawRoadAhead(ctx, player, view) {
+    const progress = this.wrapProgress(
+      player.progress
+    );
 
     ctx.beginPath();
 
+    for (let i = 0; i <= AHEAD_SAMPLES; i++) {
+      const amount = i / AHEAD_SAMPLES;
 
-    for (
-      let i = 0;
-      i <= AHEAD_SAMPLES;
-      i++
-    ) {
-
-      const amount =
-        i /
-        AHEAD_SAMPLES;
-
-
-      const t =
-        this.wrapProgress(
-
-          progress +
-          AHEAD_DISTANCE *
-          amount
-
-        );
-
+      const t = this.wrapProgress(
+        progress +
+        AHEAD_DISTANCE * amount
+      );
 
       const point =
-        this.road.spline
-          .getPointAt(t);
+        this.road.spline.getPointAt(t);
 
+      const mapPoint = this.worldToMap(
+        point.x,
+        point.z,
+        view
+      );
 
-      const mapPoint =
-        this.worldToMap(
-          point.x,
-          point.z,
-          view
-        );
-
-
-      if (
-        i === 0
-      ) {
-
+      if (i === 0) {
         ctx.moveTo(
           mapPoint.x,
           mapPoint.y
         );
-
-      }
-
-      else {
-
+      } else {
         ctx.lineTo(
           mapPoint.x,
           mapPoint.y
         );
-
       }
-
     }
 
-
-    ctx.strokeStyle =
-      "rgba(80, 235, 255, 0.95)";
-
-
-    ctx.lineWidth =
-      4;
-
-
-    ctx.lineJoin =
-      "round";
-
-
-    ctx.lineCap =
-      "round";
-
-
+    ctx.strokeStyle = "rgba(80, 235, 255, 0.95)";
+    ctx.lineWidth = 4;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
     ctx.stroke();
-
   }
 
 
@@ -782,26 +371,17 @@ export class Minimap {
   // START LINE
   // ==========================================================
 
-  drawStartLine(
-    ctx,
-    view
-  ) {
-
+  drawStartLine(ctx, view) {
     const point =
-      this.road.spline
-        .getPointAt(0);
+      this.road.spline.getPointAt(0);
 
-
-    const mapPoint =
-      this.worldToMap(
-        point.x,
-        point.z,
-        view
-      );
-
+    const mapPoint = this.worldToMap(
+      point.x,
+      point.z,
+      view
+    );
 
     ctx.beginPath();
-
 
     ctx.arc(
       mapPoint.x,
@@ -811,13 +391,8 @@ export class Minimap {
       Math.PI * 2
     );
 
-
-    ctx.fillStyle =
-      "#ffffff";
-
-
+    ctx.fillStyle = "#ffffff";
     ctx.fill();
-
   }
 
 
@@ -825,38 +400,26 @@ export class Minimap {
   // PLAYER WORLD POSITION
   // ==========================================================
 
-  getPlayerWorldPosition(
-    player
-  ) {
+  getPlayerWorldPosition(player) {
+    const progress = this.wrapProgress(
+      player.progress
+    );
 
-    const progress =
-      this.wrapProgress(
-        player.progress
-      );
-
-
-    const frame =
-      this.road.getRoadFrame(
-        progress
-      );
-
+    const frame = this.road.getRoadFrame(
+      progress
+    );
 
     return {
-
       x:
         frame.center.x +
-        frame.right.x *
-        player.lat,
+        frame.right.x * player.lat,
 
       z:
         frame.center.z +
-        frame.right.z *
-        player.lat,
+        frame.right.z * player.lat,
 
-      frame
-
+      frame,
     };
-
   }
 
 
@@ -870,71 +433,34 @@ export class Minimap {
     isCurrentPlayer,
     view
   ) {
-
     const position =
-      this.getPlayerWorldPosition(
-        player
-      );
+      this.getPlayerWorldPosition(player);
 
+    const mapPoint = this.worldToMap(
+      position.x,
+      position.z,
+      view
+    );
 
-    const mapPoint =
-      this.worldToMap(
-
-        position.x,
-
-        position.z,
-
-        view
-
-      );
-
-
-    let tangentX =
-      position.frame
-        .tangent.x;
-
-
-    let tangentZ =
-      position.frame
-        .tangent.z;
-
+    let tangentX = position.frame.tangent.x;
+    let tangentZ = position.frame.tangent.z;
 
     const tangentLength =
-      Math.hypot(
-        tangentX,
-        tangentZ
-      ) || 1;
+      Math.hypot(tangentX, tangentZ) || 1;
 
-
-    tangentX /=
-      tangentLength;
-
-
-    tangentZ /=
-      tangentLength;
-
+    tangentX /= tangentLength;
+    tangentZ /= tangentLength;
 
     const directionSide =
-      tangentX *
-      view.rightX +
-      tangentZ *
-      view.rightZ;
-
+      tangentX * view.rightX +
+      tangentZ * view.rightZ;
 
     const directionForward =
-      tangentX *
-      view.forwardX +
-      tangentZ *
-      view.forwardZ;
+      tangentX * view.forwardX +
+      tangentZ * view.forwardZ;
 
-
-    const screenDX =
-      directionSide;
-
-
-    const screenDY =
-      -directionForward;
-
+    const screenDX = directionSide;
+    const screenDY = -directionForward;
 
     const angle =
       Math.atan2(
@@ -943,80 +469,47 @@ export class Minimap {
       ) +
       Math.PI / 2;
 
-
     const size =
-      isCurrentPlayer
-        ? 9
-        : 6;
-
+      isCurrentPlayer ? 9 : 6;
 
     ctx.save();
-
 
     ctx.translate(
       mapPoint.x,
       mapPoint.y
     );
 
-
-    ctx.rotate(
-      angle
-    );
-
+    ctx.rotate(angle);
 
     ctx.beginPath();
-
 
     ctx.moveTo(
       0,
       -size
     );
 
-
     ctx.lineTo(
       -size * 0.65,
       size * 0.7
     );
-
 
     ctx.lineTo(
       size * 0.65,
       size * 0.7
     );
 
-
     ctx.closePath();
 
-
-    ctx.fillStyle =
-      player.color;
-
-
+    ctx.fillStyle = player.color;
     ctx.fill();
 
-
-    // Current player's arrow
-    // gets a white outline.
-
-    if (
-      isCurrentPlayer
-    ) {
-
-      ctx.strokeStyle =
-        "#ffffff";
-
-
-      ctx.lineWidth =
-        1.7;
-
-
+    if (isCurrentPlayer) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.7;
       ctx.stroke();
-
     }
 
-
     ctx.restore();
-
   }
 
 
@@ -1024,38 +517,18 @@ export class Minimap {
   // DRAW ONE MINIMAP
   // ==========================================================
 
-  draw(
-    ctx,
-    currentPlayerIndex
-  ) {
-
+  draw(ctx, currentPlayerIndex) {
     const currentPlayer =
-      this.players[
-        currentPlayerIndex
-      ];
+      this.players[currentPlayerIndex];
 
+    if (!currentPlayer) return;
 
-    if (!currentPlayer) {
-      return;
-    }
-
-
-    const view =
-      this.buildView(
-        currentPlayer
-      );
-
-
-    this.drawBackground(
-      ctx
+    const view = this.buildView(
+      currentPlayer
     );
 
-
-    this.drawTrack(
-      ctx,
-      view
-    );
-
+    this.drawBackground(ctx);
+    this.drawTrack(ctx, view);
 
     this.drawRoadAhead(
       ctx,
@@ -1063,38 +536,19 @@ export class Minimap {
       view
     );
 
-
     this.drawStartLine(
       ctx,
       view
     );
 
-
-    // Draw BOTH cars.
-    //
-    // In AI mode this means:
-    // blue arrow = player
-    // red arrow = AI
-
-    this.players.forEach(
-      (player, index) => {
-
-        this.drawPlayer(
-
-          ctx,
-
-          player,
-
-          index ===
-            currentPlayerIndex,
-
-          view
-
-        );
-
-      }
-    );
-
+    this.players.forEach((player, index) => {
+      this.drawPlayer(
+        ctx,
+        player,
+        index === currentPlayerIndex,
+        view
+      );
+    });
   }
 
 
@@ -1103,35 +557,19 @@ export class Minimap {
   // ==========================================================
 
   update() {
-
-    if (!this.visible) {
-      return;
-    }
-
-
-    // Player 1 minimap is always
-    // updated.
+    if (!this.visible) return;
 
     this.draw(
       this.contexts[0],
       0
     );
 
-
-    // Player 2 gets another minimap
-    // only in local multiplayer.
-
-    if (
-      this.mode !== "ai"
-    ) {
-
+    if (this.mode !== "ai") {
       this.draw(
         this.contexts[1],
         1
       );
-
     }
-
   }
 
 
@@ -1140,31 +578,16 @@ export class Minimap {
   // ==========================================================
 
   show() {
+    this.visible = true;
 
-    this.visible =
-      true;
+    this.canvases[0].style.display = "block";
 
-
-    // Player 1 map
-
-    this.canvases[0]
-      .style
-      .display = "block";
-
-
-    // Second minimap only in
-    // local multiplayer.
-
-    this.canvases[1]
-      .style
-      .display =
-        this.mode === "ai"
-          ? "none"
-          : "block";
-
+    this.canvases[1].style.display =
+      this.mode === "ai"
+        ? "none"
+        : "block";
 
     this.update();
-
   }
 
 
@@ -1173,20 +596,10 @@ export class Minimap {
   // ==========================================================
 
   hide() {
+    this.visible = false;
 
-    this.visible =
-      false;
-
-
-    this.canvases.forEach(
-      (canvas) => {
-
-        canvas.style.display =
-          "none";
-
-      }
-    );
-
+    this.canvases.forEach((canvas) => {
+      canvas.style.display = "none";
+    });
   }
-
 }

@@ -1,165 +1,378 @@
 import * as THREE from "three";
 
-// Small deterministic random generator so the sky looks the same every time
+
+// ============================================================
+// DETERMINISTIC RANDOM
+// ============================================================
+
 function mulberry32(seed) {
   return function () {
     seed |= 0;
     seed = (seed + 0x6d2b79f5) | 0;
+
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-// Equirectangular night sky: black space, deep-blue nebula clouds, thousands of stars
+
+// ============================================================
+// SKY TEXTURE
+// ============================================================
+
 function createSkyTexture() {
   const W = 4096;
   const H = 2048;
+
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
-  const ctx = canvas.getContext("2d");
-  const rand = mulberry32(2024);
 
-  ctx.fillStyle = "#01020a";
+  const ctx = canvas.getContext("2d");
+  const rand = mulberry32(2026);
+
+
+  // ==========================================================
+  // BASE SPACE GRADIENT
+  // ==========================================================
+
+  const baseGradient = ctx.createLinearGradient(0, 0, 0, H);
+
+  baseGradient.addColorStop(0, "#050817");
+  baseGradient.addColorStop(0.42, "#09132b");
+  baseGradient.addColorStop(0.62, "#070d20");
+  baseGradient.addColorStop(1, "#030510");
+
+  ctx.fillStyle = baseGradient;
   ctx.fillRect(0, 0, W, H);
 
-  // --- Nebula clouds (soft blue blobs, drawn additively) ---
-  ctx.globalCompositeOperation = "lighter";
 
-  const drawBlob = (x, y, r, color, alpha) => {
-    // draw three times so the sky wraps seamlessly at the left/right edge
-    for (const dx of [-W, 0, W]) {
-      const g = ctx.createRadialGradient(x + dx, y, 0, x + dx, y, r);
-      g.addColorStop(0, `rgba(${color},${alpha})`);
-      g.addColorStop(1, `rgba(${color},0)`);
-      ctx.fillStyle = g;
-      ctx.fillRect(x + dx - r, y - r, r * 2, r * 2);
-    }
-  };
+  // ==========================================================
+  // HELPERS
+  // ==========================================================
 
-  for (let c = 0; c < 16; c++) {
-    const cx = rand() * W;
-    const cy = H * (0.15 + 0.7 * rand());
+  function drawBlob(x, y, radius, color, alpha) {
+    for (const offsetX of [-W, 0, W]) {
+      const gradient = ctx.createRadialGradient(
+        x + offsetX,
+        y,
+        0,
+        x + offsetX,
+        y,
+        radius
+      );
 
-    for (let i = 0; i < 45; i++) {
-      const x = cx + (rand() - 0.5) * 800;
-      const y = cy + (rand() - 0.5) * 420;
-      const r = 90 + rand() * 280;
-      const alpha = 0.04 + rand() * 0.06;
-      const color = rand() < 0.85 ? "24,62,185" : "70,40,150";
-      drawBlob(x, y, r, color, alpha);
+      gradient.addColorStop(0, `rgba(${color},${alpha})`);
+      gradient.addColorStop(0.45, `rgba(${color},${alpha * 0.35})`);
+      gradient.addColorStop(1, `rgba(${color},0)`);
+
+      ctx.fillStyle = gradient;
+
+      ctx.fillRect(
+        x + offsetX - radius,
+        y - radius,
+        radius * 2,
+        radius * 2
+      );
     }
   }
 
-  // --- Dense star dust ---
+
+  // ==========================================================
+  // GALACTIC RIFT
+  // ==========================================================
+
+  ctx.globalCompositeOperation = "lighter";
+
+  const riftCenterY = H * 0.48;
+  const RIFT_POINTS = 34;
+
+  for (let i = 0; i < RIFT_POINTS; i++) {
+    const t = i / (RIFT_POINTS - 1);
+    const x = t * W;
+
+    const y =
+      riftCenterY +
+      Math.sin(t * Math.PI * 2.2) * 125 +
+      (t - 0.5) * -240;
+
+
+    // ========================================================
+    // LARGE BLUE CLOUD
+    // ========================================================
+
+    drawBlob(
+      x,
+      y,
+      240 + rand() * 210,
+      "28,55,150",
+      0.07 + rand() * 0.035
+    );
+
+
+    // ========================================================
+    // VIOLET CORE
+    // ========================================================
+
+    if (rand() > 0.30) {
+      drawBlob(
+        x + (rand() - 0.5) * 180,
+        y + (rand() - 0.5) * 130,
+        120 + rand() * 170,
+        "83,45,155",
+        0.035 + rand() * 0.025
+      );
+    }
+
+
+    // ========================================================
+    // OCCASIONAL CYAN HAZE
+    // ========================================================
+
+    if (rand() > 0.68) {
+      drawBlob(
+        x + (rand() - 0.5) * 240,
+        y + (rand() - 0.5) * 150,
+        110 + rand() * 150,
+        "30,115,175",
+        0.025 + rand() * 0.018
+      );
+    }
+  }
+
+
+  // ==========================================================
+  // SUBTLE MAGENTA REGION
+  // ==========================================================
+
+  for (let i = 0; i < 5; i++) {
+    drawBlob(
+      W * 0.74 + (rand() - 0.5) * 420,
+      H * 0.36 + (rand() - 0.5) * 220,
+      180 + rand() * 240,
+      "125,35,125",
+      0.025 + rand() * 0.018
+    );
+  }
+
+
+  // ==========================================================
+  // STAR FIELD
+  // ==========================================================
+
   ctx.globalCompositeOperation = "source-over";
 
-  for (let i = 0; i < 7000; i++) {
-    // uniform distribution over a sphere
-    const lat = Math.asin(2 * rand() - 1);
+  const STAR_COUNT = 2600;
+
+  for (let i = 0; i < STAR_COUNT; i++) {
     const x = rand() * W;
-    const y = (0.5 - lat / Math.PI) * H;
+    const y = rand() * H;
+    const brightness = rand();
 
-    const r = 0.45 + Math.pow(rand(), 5) * 1.7;
-    const stretch = 1 / Math.max(Math.cos(lat), 0.2); // undo equirect squeeze near poles
+    let radius;
+    let alpha;
+
+    if (brightness > 0.985) {
+      radius = 1.5 + rand() * 1.3;
+      alpha = 0.80 + rand() * 0.20;
+    } else if (brightness > 0.90) {
+      radius = 0.75 + rand() * 0.65;
+      alpha = 0.60 + rand() * 0.25;
+    } else {
+      radius = 0.35 + rand() * 0.45;
+      alpha = 0.25 + rand() * 0.45;
+    }
+
     const tint = rand();
-    const color =
-      tint < 0.7 ? "255,255,255" : tint < 0.88 ? "190,215,255" : "255,235,200";
+    let color;
 
-    ctx.fillStyle = `rgba(${color},${0.45 + rand() * 0.55})`;
+    if (tint < 0.74) {
+      color = "230,240,255";
+    } else if (tint < 0.90) {
+      color = "175,205,255";
+    } else {
+      color = "255,220,195";
+    }
+
+    ctx.fillStyle = `rgba(${color},${alpha})`;
+
     ctx.beginPath();
-    ctx.ellipse(x, y, r * stretch, r, 0, 0, Math.PI * 2);
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
   }
 
+
+  // ==========================================================
+  // CREATE THREE.JS TEXTURE
+  // ==========================================================
+
   const texture = new THREE.CanvasTexture(canvas);
+
   texture.mapping = THREE.EquirectangularReflectionMapping;
-  // The post-processing chain writes linear values straight to the screen (same as the
-  // original project), so the painted colours are used as-is instead of being converted.
-  texture.colorSpace = THREE.NoColorSpace;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+
   return texture;
 }
 
-// Glowing 4-point sparkle sprite for the brighter stars
+
+// ============================================================
+// BRIGHT STAR SPRITE
+// ============================================================
+
 function createSparkleTexture() {
   const size = 128;
+
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
-  const ctx = canvas.getContext("2d");
-  const c = size / 2;
 
-  const glow = ctx.createRadialGradient(c, c, 0, c, c, c);
+  const ctx = canvas.getContext("2d");
+  const center = size / 2;
+
+
+  // ==========================================================
+  // CORE GLOW
+  // ==========================================================
+
+  const glow = ctx.createRadialGradient(
+    center,
+    center,
+    0,
+    center,
+    center,
+    center
+  );
+
   glow.addColorStop(0, "rgba(255,255,255,1)");
-  glow.addColorStop(0.12, "rgba(220,235,255,0.75)");
-  glow.addColorStop(0.35, "rgba(140,180,255,0.18)");
-  glow.addColorStop(1, "rgba(80,120,255,0)");
+  glow.addColorStop(0.08, "rgba(225,235,255,0.85)");
+  glow.addColorStop(0.25, "rgba(120,160,255,0.22)");
+  glow.addColorStop(1, "rgba(80,100,220,0)");
+
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, size, size);
 
-  // cross-shaped spikes
+
+  // ==========================================================
+  // VERY SUBTLE CROSS
+  // ==========================================================
+
   ctx.globalCompositeOperation = "lighter";
-  for (const [w, h] of [
-    [size, 3],
-    [3, size],
-  ]) {
-    const g = ctx.createLinearGradient(c - w / 2, c - h / 2, c + w / 2, c + h / 2);
-    g.addColorStop(0, "rgba(255,255,255,0)");
-    g.addColorStop(0.5, "rgba(255,255,255,0.95)");
-    g.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = g;
-    ctx.fillRect(c - w / 2, c - h / 2, w, h);
-  }
+
+  const horizontal = ctx.createLinearGradient(
+    0,
+    center,
+    size,
+    center
+  );
+
+  horizontal.addColorStop(0, "rgba(255,255,255,0)");
+  horizontal.addColorStop(0.5, "rgba(255,255,255,0.45)");
+  horizontal.addColorStop(1, "rgba(255,255,255,0)");
+
+  ctx.fillStyle = horizontal;
+  ctx.fillRect(0, center - 1, size, 2);
+
+  const vertical = ctx.createLinearGradient(
+    center,
+    0,
+    center,
+    size
+  );
+
+  vertical.addColorStop(0, "rgba(255,255,255,0)");
+  vertical.addColorStop(0.5, "rgba(255,255,255,0.35)");
+  vertical.addColorStop(1, "rgba(255,255,255,0)");
+
+  ctx.fillStyle = vertical;
+  ctx.fillRect(center - 1, 0, 2, size);
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.NoColorSpace;
+  texture.colorSpace = THREE.SRGBColorSpace;
+
   return texture;
 }
+
+
+// ============================================================
+// PUBLIC BACKGROUND SETUP
+// ============================================================
 
 export function createStarBackground(scene) {
   scene.background = createSkyTexture();
 
-  // Brighter twinkling stars on a huge sphere around the world
   const sparkle = createSparkleTexture();
   const rand = mulberry32(99);
 
   const groups = [
-    { count: 900, size: 5 },
-    { count: 260, size: 9 },
-    { count: 70, size: 16 },
+    {
+      count: 160,
+      size: 3.2,
+      opacity: 0.55,
+    },
+    {
+      count: 55,
+      size: 5.5,
+      opacity: 0.65,
+    },
+    {
+      count: 12,
+      size: 8.5,
+      opacity: 0.75,
+    },
   ];
 
-  for (const { count, size } of groups) {
+  for (const { count, size, opacity } of groups) {
     const positions = new Float32Array(count * 3);
 
     for (let i = 0; i < count; i++) {
       const u = rand() * 2 - 1;
       const theta = rand() * Math.PI * 2;
-      const s = Math.sqrt(1 - u * u);
-      const radius = 900;
+      const horizontal = Math.sqrt(1 - u * u);
+      const radius = 650 + rand() * 300;
 
-      positions[i * 3] = Math.cos(theta) * s * radius;
-      positions[i * 3 + 1] = u * radius;
-      positions[i * 3 + 2] = Math.sin(theta) * s * radius;
+      positions[i * 3] =
+        Math.cos(theta) *
+        horizontal *
+        radius;
+
+      positions[i * 3 + 1] =
+        u * radius;
+
+      positions[i * 3 + 2] =
+        Math.sin(theta) *
+        horizontal *
+        radius;
     }
 
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    const geometry = new THREE.BufferGeometry();
 
-    const mat = new THREE.PointsMaterial({
+    geometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(positions, 3)
+    );
+
+    const material = new THREE.PointsMaterial({
       map: sparkle,
       size,
       sizeAttenuation: false,
       transparent: true,
+      opacity,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
-      color: 0xcfe0ff,
+      color: 0xbfd8ff,
       fog: false,
     });
 
-    const stars = new THREE.Points(geo, mat);
+    const stars = new THREE.Points(
+      geometry,
+      material
+    );
+
     stars.frustumCulled = false;
+
     scene.add(stars);
   }
 }

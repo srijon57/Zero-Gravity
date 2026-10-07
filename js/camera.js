@@ -5,13 +5,10 @@ const cameraHeight = 0.55;
 const cameraDistance = 2.3;
 const lookOffset = new THREE.Vector3(0, 0.05, 0.45);
 
-// Chase camera that follows one player's car. Uses the car's own quaternion
-// (road orientation + steering heading combined) so the camera swings with
-// the car when the player actually steers, instead of always looking straight
-// down the track.
 export class ChaseCamera {
   constructor() {
     this.camera = new THREE.PerspectiveCamera(BASE_FOV, 1, 0.1, 2000);
+
     this._offset = new THREE.Vector3();
     this._target = new THREE.Vector3();
     this._look = new THREE.Vector3();
@@ -21,23 +18,44 @@ export class ChaseCamera {
   update(player, dt, snap = false) {
     const { car } = player;
 
-    this._offset.set(0, cameraHeight, -cameraDistance).applyQuaternion(car.quaternion);
-    this._target.copy(car.position).add(this._offset);
+    this._offset
+      .set(0, cameraHeight, -cameraDistance)
+      .applyQuaternion(car.quaternion);
 
-    if (snap) this.camera.position.copy(this._target);
-    else this.camera.position.lerp(this._target, 1 - Math.exp(-10 * dt));
+    this._target
+      .copy(car.position)
+      .add(this._offset);
 
-    this._look.copy(lookOffset).applyQuaternion(car.quaternion).add(car.position);
-    this._up.set(0, 1, 0).applyQuaternion(car.quaternion);
+    if (snap) {
+      this.camera.position.copy(this._target);
+    } else {
+      this.camera.position.lerp(
+        this._target,
+        1 - Math.exp(-10 * dt)
+      );
+    }
+
+    this._look
+      .copy(lookOffset)
+      .applyQuaternion(car.quaternion)
+      .add(car.position);
+
+    this._up
+      .set(0, 1, 0)
+      .applyQuaternion(car.quaternion);
 
     this.camera.up.copy(this._up);
     this.camera.lookAt(this._look);
 
-    // FOV kick while using nitro
     const targetFov = BASE_FOV + (player.nitroActive ? 9 : 0);
+
     const fov = snap
       ? targetFov
-      : THREE.MathUtils.lerp(this.camera.fov, targetFov, 1 - Math.exp(-6 * dt));
+      : THREE.MathUtils.lerp(
+          this.camera.fov,
+          targetFov,
+          1 - Math.exp(-6 * dt)
+        );
 
     if (Math.abs(fov - this.camera.fov) > 0.01) {
       this.camera.fov = fov;

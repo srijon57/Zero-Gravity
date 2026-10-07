@@ -7,9 +7,9 @@ import { eventHorizon } from "./eventHorizon.js";
 export const MAPS = [
   solarLoop,
   auroraCircuit,
-  nebulaRun,
   meteorRift,
-  eventHorizon
+  eventHorizon,
+    nebulaRun,
 ];
 
 export const DEFAULT_MAP = solarLoop;
