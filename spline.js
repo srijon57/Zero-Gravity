@@ -9,7 +9,6 @@ export function createSpline(mapConfig) {
     const curvePath = mapConfig.curvePath;
     const trackScale = mapConfig.trackScale;
 
-
     for (let p = 0; p < curvePath.length; p += 3) {
 
         points.push(
@@ -22,32 +21,16 @@ export function createSpline(mapConfig) {
 
     }
 
-
-    // If final point duplicates first point, remove it.
-    // CatmullRomCurve3 will close the track automatically.
-    if (
-        points.length > 2 &&
-        points[0].distanceTo(points[points.length - 1]) < 1e-6
-    ) {
+    if (points.length > 2 && points[0].distanceTo(points[points.length - 1]) < 1e-6) {
         points.pop();
     }
 
 
-    const spline = new THREE.CatmullRomCurve3(
-        points,
-        true
-    );
-
-
+    const spline = new THREE.CatmullRomCurve3(points, true);
     spline.arcLengthDivisions = 2000;
     spline.updateArcLengths();
-
-
     return spline;
 }
 
-
-// For now the game still automatically uses the default map.
 const spline = createSpline(DEFAULT_MAP);
-
 export default spline;
