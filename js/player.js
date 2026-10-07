@@ -800,11 +800,18 @@ export class Player {
 
 
     const brake =
-
       canDrive &&
-
       !!controlState.brake;
+    
+    const brakeMultiplier =
 
+  Number.isFinite(
+    controlState.brakeMultiplier
+  )
+
+    ? controlState.brakeMultiplier
+
+    : 1;
 
     const steerLeft =
 
@@ -984,10 +991,9 @@ export class Player {
       ) {
 
         this.speed -=
-
-          braking *
-
-          dt;
+  braking *
+  brakeMultiplier *
+  dt;
 
       }
 

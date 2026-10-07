@@ -405,3 +405,318 @@ canvas {
   color: #000;
   box-shadow: none;
 }
+
+/* ============================================================
+   CLEANER TOP-RIGHT RACE INFO
+============================================================ */
+
+.hud-info,
+.hud-times {
+  right: 22px;
+  width: 180px;
+
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+
+  box-sizing: border-box;
+
+  background: rgba(10, 12, 18, 0.58);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+
+/* LAP + POSITION */
+
+.hud-info {
+  top: 20px;
+
+  padding:
+    10px
+    12px
+    9px;
+
+  border-left:
+    2px solid
+    var(--player);
+}
+
+
+/* LAP TIME + BEST */
+
+.hud-times {
+  top: 79px;
+
+  padding:
+    9px
+    12px
+    10px;
+
+  border-top:
+    1px solid
+    rgba(255, 255, 255, 0.08);
+
+  border-left:
+    2px solid
+    rgba(255, 255, 255, 0.12);
+}
+
+
+/* ============================================================
+   EACH STAT
+============================================================ */
+
+.hud-info > div,
+.hud-times > div {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+}
+
+
+/* Divider between columns */
+
+.hud-info > div + div,
+.hud-times > div + div {
+  border-left:
+    1px solid
+    rgba(255, 255, 255, 0.09);
+}
+
+
+/* ============================================================
+   LABEL
+============================================================ */
+
+.hud-info small,
+.hud-times small {
+  display: block;
+
+  margin-bottom: 5px;
+
+  font-size: 8px;
+  line-height: 1;
+
+  letter-spacing: 0.18em;
+
+  white-space: nowrap;
+
+  opacity: 0.5;
+}
+
+
+/* ============================================================
+   MAIN VALUES
+============================================================ */
+
+.hud-info b {
+  display: block;
+
+  font-size: 22px;
+  line-height: 1;
+
+  font-weight: 800;
+
+  white-space: nowrap;
+}
+
+
+/* Time doesn't need to be as large */
+
+.hud-times b {
+  display: block;
+
+  font-size: 12px;
+  line-height: 1.1;
+
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+
+/* Give the two columns a little breathing room */
+
+.hud-info > div:first-child,
+.hud-times > div:first-child {
+  padding-right: 8px;
+}
+
+.hud-info > div:last-child,
+.hud-times > div:last-child {
+  padding-left: 8px;
+}
+
+/* ============================================================
+   PAUSE MENU
+============================================================ */
+
+.pause-overlay {
+  position: fixed;
+  inset: 0;
+
+  z-index: 10000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background:
+    rgba(2, 3, 8, 0.68);
+
+  backdrop-filter:
+    blur(8px);
+
+  -webkit-backdrop-filter:
+    blur(8px);
+}
+
+
+.pause-card {
+  width: min(
+    360px,
+    calc(100vw - 40px)
+  );
+
+  padding:
+    32px 34px 28px;
+
+  text-align: center;
+
+  border:
+    1px solid
+    rgba(239, 68, 68, 0.35);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(20, 8, 12, 0.96),
+      rgba(5, 6, 12, 0.96)
+    );
+
+  box-shadow:
+    0 0 60px
+    rgba(239, 68, 68, 0.12);
+}
+
+
+.pause-kicker {
+  font-size: 9px;
+
+  letter-spacing: 0.4em;
+
+  color:
+    rgba(255, 255, 255, 0.35);
+}
+
+
+.pause-card h2 {
+  margin:
+    10px 0 0;
+
+  font-size: 32px;
+
+  font-weight: 900;
+
+  letter-spacing: 0.12em;
+
+  color: white;
+}
+
+
+.pause-line {
+  width: 42px;
+  height: 2px;
+
+  margin:
+    18px auto 22px;
+
+  background:
+    #ef4444;
+
+  box-shadow:
+    0 0 12px
+    rgba(239, 68, 68, 0.8);
+}
+
+
+.pause-buttons {
+  display: grid;
+
+  gap: 10px;
+}
+
+
+.pause-buttons button {
+  width: 100%;
+
+  padding:
+    12px 16px;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.12);
+
+  background:
+    rgba(255, 255, 255, 0.035);
+
+  color: white;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  letter-spacing: 0.25em;
+
+  cursor: pointer;
+
+  transition:
+    0.2s ease;
+}
+
+
+.pause-buttons button:hover {
+  border-color:
+    rgba(239, 68, 68, 0.7);
+
+  background:
+    rgba(239, 68, 68, 0.12);
+
+  box-shadow:
+    0 0 20px
+    rgba(239, 68, 68, 0.12);
+}
+
+
+.pause-menu-button {
+  color:
+    rgba(
+      255,
+      255,
+      255,
+      0.55
+    ) !important;
+}
+
+
+.pause-hint {
+  margin-top: 20px;
+
+  font-size: 8px;
+
+  letter-spacing: 0.25em;
+
+  color:
+    rgba(
+      255,
+      255,
+      255,
+      0.22
+    );
+}
