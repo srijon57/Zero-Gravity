@@ -1,40 +1,10 @@
 import * as THREE from "three";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-import {
-  GLTFLoader
-} from "three/examples/jsm/loaders/GLTFLoader.js";
-
-import {
-  applyCarStyle
-} from "./carStyle.js";
-
-import {
-  CAR_URL
-} from "./assets.js";
-
-import {
-  unlockAudio
-} from "./audio.js";
-
-import {
-  MAPS,
-  DEFAULT_MAP
-} from "./maps/maps.js";
-
-
-// ============================================================
-// TRACK LEVEL
-//
-// Desired difficulty progression:
-//
-// Meteor Rift   -> L1
-// Event Horizon -> L2
-// Nebula        -> L3
-//
-// L3 = hardest.
-// ============================================================
-
-
+import { applyCarStyle } from "./carStyle.js";
+import { CAR_URL } from "./assets.js";
+import { unlockAudio } from "./audio.js";
+import { MAPS, DEFAULT_MAP } from "./maps/maps.js";
 
 
 // ============================================================
@@ -42,216 +12,60 @@ import {
 // ============================================================
 
 function createMapPreviewSVG(map) {
+  const points = [];
 
-  const points =
-    [];
-
-
-  for (
-    let i = 0;
-    i < map.curvePath.length;
-    i += 3
-  ) {
-
+  for (let i = 0; i < map.curvePath.length; i += 3) {
     points.push({
-
-      x:
-        map.curvePath[i],
-
-      z:
-        map.curvePath[i + 2]
-
+      x: map.curvePath[i],
+      z: map.curvePath[i + 2],
     });
-
   }
 
+  if (points.length < 2) return "";
 
-  if (
-    points.length < 2
-  ) {
+  const minX = Math.min(...points.map((point) => point.x));
+  const maxX = Math.max(...points.map((point) => point.x));
+  const minZ = Math.min(...points.map((point) => point.z));
+  const maxZ = Math.max(...points.map((point) => point.z));
 
-    return "";
+  const width = Math.max(maxX - minX, 1);
+  const height = Math.max(maxZ - minZ, 1);
 
-  }
+  const viewWidth = 100;
+  const viewHeight = 56;
+  const padding = 7;
 
+  const scale = Math.min(
+    (viewWidth - padding * 2) / width,
+    (viewHeight - padding * 2) / height
+  );
 
-  const minX =
-    Math.min(
-      ...points.map(
-        (point) =>
-          point.x
-      )
-    );
+  const drawnWidth = width * scale;
+  const drawnHeight = height * scale;
 
+  const offsetX = (viewWidth - drawnWidth) / 2;
+  const offsetY = (viewHeight - drawnHeight) / 2;
 
-  const maxX =
-    Math.max(
-      ...points.map(
-        (point) =>
-          point.x
-      )
-    );
+  const toPreviewPoint = ({ x, z }) => ({
+    x: offsetX + (x - minX) * scale,
+    y: offsetY + (maxZ - z) * scale,
+  });
 
+  const previewPoints = points.map(toPreviewPoint);
 
-  const minZ =
-    Math.min(
-      ...points.map(
-        (point) =>
-          point.z
-      )
-    );
+  const pointString = previewPoints
+    .map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`)
+    .join(" ");
 
-
-  const maxZ =
-    Math.max(
-      ...points.map(
-        (point) =>
-          point.z
-      )
-    );
-
-
-  const width =
-    Math.max(
-      maxX - minX,
-      1
-    );
-
-
-  const height =
-    Math.max(
-      maxZ - minZ,
-      1
-    );
-
-
-  const viewWidth =
-    100;
-
-
-  const viewHeight =
-    56;
-
-
-  const padding =
-    7;
-
-
-  const scale =
-    Math.min(
-
-      (
-        viewWidth -
-        padding * 2
-      ) /
-      width,
-
-      (
-        viewHeight -
-        padding * 2
-      ) /
-      height
-
-    );
-
-
-  const drawnWidth =
-    width *
-    scale;
-
-
-  const drawnHeight =
-    height *
-    scale;
-
-
-  const offsetX =
-
-    (
-      viewWidth -
-      drawnWidth
-    ) /
-    2;
-
-
-  const offsetY =
-
-    (
-      viewHeight -
-      drawnHeight
-    ) /
-    2;
-
-
-  const toPreviewPoint =
-    ({
-      x,
-      z
-    }) => ({
-
-      x:
-
-        offsetX +
-
-        (
-          x -
-          minX
-        ) *
-        scale,
-
-
-      y:
-
-        offsetY +
-
-        (
-          maxZ -
-          z
-        ) *
-        scale
-
-    });
-
-
-  const previewPoints =
-    points.map(
-      toPreviewPoint
-    );
-
-
-  const pointString =
-
-    previewPoints
-
-      .map(
-        (point) =>
-
-          `${point.x.toFixed(
-            1
-          )},${point.y.toFixed(
-            1
-          )}`
-
-      )
-
-      .join(
-        " "
-      );
-
-
-  const start =
-    previewPoints[0];
-
+  const start = previewPoints[0];
 
   return `
-
     <svg
       class="map-preview-svg"
       viewBox="0 0 ${viewWidth} ${viewHeight}"
       preserveAspectRatio="xMidYMid meet"
       aria-hidden="true"
     >
-
       <polyline
         class="map-preview-shadow"
         points="${pointString}"
@@ -259,7 +73,6 @@ function createMapPreviewSVG(map) {
         stroke-linecap="round"
         stroke-linejoin="round"
       />
-
 
       <polyline
         class="map-preview-track"
@@ -269,18 +82,14 @@ function createMapPreviewSVG(map) {
         stroke-linejoin="round"
       />
 
-
       <circle
         class="map-preview-start"
         cx="${start.x.toFixed(1)}"
         cy="${start.y.toFixed(1)}"
         r="2.2"
       />
-
     </svg>
-
   `;
-
 }
 
 
@@ -288,185 +97,68 @@ function createMapPreviewSVG(map) {
 // LANDING SCREEN
 // ============================================================
 
-export function setupLandingScreen(
-  onStartRace
-) {
-
-  const landing =
-    document.createElement(
-      "div"
-    );
-
+export function setupLandingScreen(onStartRace) {
+  const landing = document.createElement("div");
 
   landing.className = `
     fixed inset-0 z-50
-    overflow-x-hidden
-    overflow-y-auto
+    overflow-x-hidden overflow-y-auto
     bg-[#050507]
-    transition-opacity
-    duration-700
+    transition-opacity duration-700
   `;
 
-
   landing.innerHTML = `
-
     <style>
-
       /* ======================================================
          GAME MODE
       ====================================================== */
 
       .landing-mode-row {
-
         display: grid;
-
-        grid-template-columns:
-          repeat(
-            2,
-            minmax(
-              0,
-              1fr
-            )
-          );
-
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 7px;
-
       }
 
-
       .landing-mode-button {
-
         position: relative;
-
         min-height: 48px;
-
-        border:
-          1px solid
-          rgba(
-            255,
-            255,
-            255,
-            0.08
-          );
-
-        background:
-          rgba(
-            255,
-            255,
-            255,
-            0.018
-          );
-
-        color:
-          rgba(
-            255,
-            255,
-            255,
-            0.38
-          );
-
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.018);
+        color: rgba(255, 255, 255, 0.38);
         transition:
           border-color 180ms ease,
           background 180ms ease,
           color 180ms ease,
           box-shadow 180ms ease;
-
       }
-
 
       .landing-mode-button:hover {
-
-        border-color:
-          rgba(
-            255,
-            255,
-            255,
-            0.22
-          );
-
-        color:
-          rgba(
-            255,
-            255,
-            255,
-            0.75
-          );
-
+        border-color: rgba(255, 255, 255, 0.22);
+        color: rgba(255, 255, 255, 0.75);
       }
-
 
       .landing-mode-button.active {
-
-        border-color:
-          rgba(
-            239,
-            68,
-            68,
-            0.55
-          );
-
-        background:
-          rgba(
-            239,
-            68,
-            68,
-            0.08
-          );
-
-        color:
-          #ffffff;
-
-        box-shadow:
-          inset 0 0 24px
-          rgba(
-            239,
-            68,
-            68,
-            0.035
-          );
-
+        border-color: rgba(239, 68, 68, 0.55);
+        background: rgba(239, 68, 68, 0.08);
+        color: #ffffff;
+        box-shadow: inset 0 0 24px rgba(239, 68, 68, 0.035);
       }
-
 
       .landing-mode-main {
-
         display: block;
-
         font-size: 9px;
-
         font-weight: 700;
-
-        text-transform:
-          uppercase;
-
-        letter-spacing:
-          0.25em;
-
+        text-transform: uppercase;
+        letter-spacing: 0.25em;
       }
 
-
       .landing-mode-sub {
-
         display: block;
-
         margin-top: 4px;
-
         font-size: 7px;
-
-        text-transform:
-          uppercase;
-
-        letter-spacing:
-          0.18em;
-
-        color:
-          rgba(
-            255,
-            255,
-            255,
-            0.25
-          );
-
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: rgba(255, 255, 255, 0.25);
       }
 
 
@@ -475,57 +167,25 @@ export function setupLandingScreen(
       ====================================================== */
 
       .landing-map-grid {
-
         display: grid;
-
-        grid-template-columns:
-          repeat(
-            auto-fit,
-            minmax(
-              72px,
-              1fr
-            )
-          );
-
+        grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
         gap: 7px;
-
       }
-
 
       .map-chip.landing-map-card {
-
         position: relative;
-
         min-width: 0;
-
         min-height: 78px;
-
-        padding:
-          7px 6px 7px;
-
+        padding: 7px 6px;
         overflow: hidden;
-
       }
 
-
       .landing-map-card .map-level {
-
         display: block;
-
         margin: 0;
-
         font-size: 8px;
-
         line-height: 1;
-
-        color:
-          rgba(
-            255,
-            255,
-            255,
-            0.38
-          );
-
+        color: rgba(255, 255, 255, 0.38);
       }
 
 
@@ -534,231 +194,95 @@ export function setupLandingScreen(
       ====================================================== */
 
       .map-preview-shell {
-
         display: flex;
-
         height: 54px;
-
         margin-top: 5px;
-
         align-items: center;
-
         justify-content: center;
-
-        border:
-          1px solid
-          rgba(
-            255,
-            255,
-            255,
-            0.05
-          );
-
+        border: 1px solid rgba(255, 255, 255, 0.05);
         background:
-
           radial-gradient(
             circle at center,
-            rgba(
-              239,
-              68,
-              68,
-              0.08
-            ),
+            rgba(239, 68, 68, 0.08),
             transparent 68%
           ),
-
-          rgba(
-            255,
-            255,
-            255,
-            0.015
-          );
-
+          rgba(255, 255, 255, 0.015);
       }
-
 
       .map-preview-svg {
-
         width: 100%;
-
         height: 100%;
-
         overflow: visible;
-
       }
-
 
       .map-preview-shadow {
-
-        stroke:
-          rgba(
-            0,
-            0,
-            0,
-            0.75
-          );
-
+        stroke: rgba(0, 0, 0, 0.75);
         stroke-width: 7;
-
       }
 
-
       .map-preview-track {
-
-        stroke:
-          rgba(
-            255,
-            255,
-            255,
-            0.38
-          );
-
+        stroke: rgba(255, 255, 255, 0.38);
         stroke-width: 3.2;
-
         transition:
           stroke 180ms ease,
           filter 180ms ease;
-
       }
 
-
       .map-preview-start {
-
         fill: #ef4444;
-
-        stroke:
-          rgba(
-            255,
-            255,
-            255,
-            0.85
-          );
-
+        stroke: rgba(255, 255, 255, 0.85);
         stroke-width: 0.9;
-
         opacity: 0.78;
-
       }
 
-
-      .landing-map-card:hover
-      .map-preview-track {
-
-        stroke:
-          rgba(
-            255,
-            255,
-            255,
-            0.82
-          );
-
+      .landing-map-card:hover .map-preview-track {
+        stroke: rgba(255, 255, 255, 0.82);
       }
 
-
-      .landing-map-card.active
-      .map-preview-track {
-
-        stroke:
-          #ef4444;
-
-        filter:
-          drop-shadow(
-            0 0 3px
-            rgba(
-              239,
-              68,
-              68,
-              0.75
-            )
-          );
-
+      .landing-map-card.active .map-preview-track {
+        stroke: #ef4444;
+        filter: drop-shadow(0 0 3px rgba(239, 68, 68, 0.75));
       }
 
-
-      .landing-map-card.active
-      .map-preview-start {
-
+      .landing-map-card.active .map-preview-start {
         fill: #ffffff;
-
-        stroke:
-          #ef4444;
-
+        stroke: #ef4444;
         opacity: 1;
-
       }
 
-
-      .landing-map-card.active
-      .map-preview-shell {
-
-        border-color:
-          rgba(
-            239,
-            68,
-            68,
-            0.28
-          );
-
+      .landing-map-card.active .map-preview-shell {
+        border-color: rgba(239, 68, 68, 0.28);
         background:
-
           radial-gradient(
             circle at center,
-            rgba(
-              239,
-              68,
-              68,
-              0.15
-            ),
+            rgba(239, 68, 68, 0.15),
             transparent 70%
           ),
-
-          rgba(
-            239,
-            68,
-            68,
-            0.025
-          );
-
+          rgba(239, 68, 68, 0.025);
       }
 
 
       /* ======================================================
-         SMALL LAP SELECTOR
+         LAP SELECTOR
       ====================================================== */
 
       .lap-step.compact-lap-step {
-
         width: 28px;
-
         height: 28px;
-
         font-size: 14px;
-
       }
-
 
       .lap-value.compact-lap-value {
-
         min-width: 31px;
-
         font-size: 22px;
-
         line-height: 1;
-
       }
 
-
       .lap-chip.compact-lap-chip {
-
         min-width: 25px;
-
         height: 25px;
-
-        padding:
-          0 5px;
-
+        padding: 0 5px;
         font-size: 8px;
-
       }
 
 
@@ -766,56 +290,25 @@ export function setupLandingScreen(
          RESPONSIVE
       ====================================================== */
 
-      @media (
-        max-width: 767px
-      ) {
-
+      @media (max-width: 767px) {
         .landing-map-grid {
-
-          grid-template-columns:
-            repeat(
-              3,
-              minmax(
-                0,
-                1fr
-              )
-            );
-
+          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
-
       }
 
-
-      @media (
-        min-width: 768px
-      )
-      and
-      (
-        max-height: 820px
-      ) {
-
+      @media (min-width: 768px) and (max-height: 820px) {
         #landing-title {
-
           font-size: 78px;
-
         }
-
 
         #landing-selector {
-
           margin-top: 18px;
-
         }
-
 
         #landing-controls {
-
           margin-top: 18px;
-
         }
-
       }
-
     </style>
 
 
@@ -823,97 +316,64 @@ export function setupLandingScreen(
          BACKGROUND
     ======================================================= -->
 
-    <div class="
-      pointer-events-none
-      absolute
-      -left-40
-      top-1/2
-      h-[600px]
-      w-[600px]
-      -translate-y-1/2
-      rounded-full
-      bg-red-700/10
-      blur-[160px]
-    ">
-    </div>
+    <div
+      class="
+        pointer-events-none absolute -left-40 top-1/2
+        h-[600px] w-[600px]
+        -translate-y-1/2 rounded-full
+        bg-red-700/10 blur-[160px]
+      "
+    ></div>
 
-
-    <div class="
-      pointer-events-none
-      absolute
-      right-[-150px]
-      top-[-150px]
-      h-[600px]
-      w-[600px]
-      rounded-full
-      bg-cyan-500/8
-      blur-[180px]
-    ">
-    </div>
+    <div
+      class="
+        pointer-events-none absolute right-[-150px] top-[-150px]
+        h-[600px] w-[600px]
+        rounded-full bg-cyan-500/8 blur-[180px]
+      "
+    ></div>
 
 
     <!-- ======================================================
          TOP BAR
     ======================================================= -->
 
-    <div class="
-      absolute
-      left-0
-      top-0
-      z-20
-      flex
-      w-full
-      items-center
-      justify-between
-      px-10
-      py-6
-      md:px-16
-    ">
-
-      <div class="
-        flex
-        items-center
-        gap-3
-      ">
-
-        <div class="
-          h-2
-          w-2
-          rounded-full
-          bg-red-500
-          shadow-[0_0_14px_#ef4444]
-        ">
-        </div>
-
+    <div
+      class="
+        absolute left-0 top-0 z-20
+        flex w-full items-center justify-between
+        px-10 py-6 md:px-16
+      "
+    >
+      <div class="flex items-center gap-3">
+        <div
+          class="
+            h-2 w-2 rounded-full bg-red-500
+            shadow-[0_0_14px_#ef4444]
+          "
+        ></div>
 
         <span
           id="landing-mode-status"
           class="
-            text-[10px]
-            uppercase
-            tracking-[0.4em]
-            text-white/40
+            text-[10px] uppercase
+            tracking-[0.4em] text-white/40
           "
         >
           SINGLE PLAYER · VS NOVA AI
         </span>
-
       </div>
-
 
       <span
         id="landing-mode-top-right"
         class="
-          hidden
-          text-[10px]
-          tracking-[0.3em]
-          text-white/25
+          hidden text-[10px]
+          tracking-[0.3em] text-white/25
           md:block
         "
       >
         // AI RACE
       </span>
-
     </div>
 
 
@@ -921,94 +381,69 @@ export function setupLandingScreen(
          MAIN
     ======================================================= -->
 
-    <main class="
-      relative
-      z-10
-      mx-auto
-      grid
-      min-h-screen
-      max-w-[1500px]
-      grid-cols-1
-      items-center
-      px-8
-      md:grid-cols-[0.85fr_1.15fr]
-      md:px-16
-      lg:px-24
-    ">
-
+    <main
+      class="
+        relative z-10 mx-auto grid
+        min-h-screen max-w-[1500px]
+        grid-cols-1 items-center
+        px-8
+        md:grid-cols-[0.85fr_1.15fr]
+        md:px-16
+        lg:px-24
+      "
+    >
 
       <!-- ====================================================
            LEFT
       ===================================================== -->
 
-      <section class="
-        z-20
-        flex
-        flex-col
-        items-start
-        justify-center
-      ">
+      <section
+        class="
+          z-20 flex flex-col
+          items-start justify-center
+        "
+      >
+        <div class="mb-4 flex items-center gap-4">
+          <div
+            class="
+              h-px w-12
+              bg-gradient-to-r
+              from-red-500 to-transparent
+            "
+          ></div>
 
-
-        <div class="
-          mb-4
-          flex
-          items-center
-          gap-4
-        ">
-
-          <div class="
-            h-px
-            w-12
-            bg-gradient-to-r
-            from-red-500
-            to-transparent
-          ">
-          </div>
-
-
-          <span class="
-            text-[10px]
-            uppercase
-            tracking-[0.55em]
-            text-red-400
-          ">
+          <span
+            class="
+              text-[10px] uppercase
+              tracking-[0.55em] text-red-400
+            "
+          >
             Beyond the road
           </span>
-
         </div>
-
-
-        <!-- TITLE -->
 
         <h1
           id="landing-title"
           class="
-            text-[60px]
-            font-black
-            uppercase
-            leading-[0.82]
-            tracking-[-0.06em]
+            text-[60px] font-black uppercase
+            leading-[0.82] tracking-[-0.06em]
             text-white
             sm:text-[85px]
             lg:text-[102px]
           "
         >
-
           ZERO
 
-          <span class="
-            block
-            bg-gradient-to-r
-            from-white
-            via-white
-            to-white/30
-            bg-clip-text
-            text-transparent
-          ">
+          <span
+            class="
+              block
+              bg-gradient-to-r
+              from-white via-white to-white/30
+              bg-clip-text text-transparent
+            "
+          >
             GRAVITY
           </span>
-
         </h1>
 
 
@@ -1018,91 +453,52 @@ export function setupLandingScreen(
 
         <div
           id="landing-selector"
-          class="
-            mt-8
-            w-full
-            max-w-md
-          "
+          class="mt-8 w-full max-w-md"
         >
-
 
           <!-- ================================================
                GAME MODE
           ================================================= -->
 
-          <div class="
-            mb-5
-          ">
-
-            <div class="
-              mb-2
-              text-[10px]
-              uppercase
-              tracking-[0.4em]
-              text-white/40
-            ">
+          <div class="mb-5">
+            <div
+              class="
+                mb-2 text-[10px] uppercase
+                tracking-[0.4em] text-white/40
+              "
+            >
               Game mode
             </div>
 
-
-            <div class="
-              landing-mode-row
-            ">
-
-              <!-- 2 PLAYER -->
-
+            <div class="landing-mode-row">
               <button
                 type="button"
-                class="
-                  landing-mode-button
-                "
+                class="landing-mode-button"
                 data-game-mode="local"
               >
-
-                <span class="
-                  landing-mode-main
-                ">
+                <span class="landing-mode-main">
                   2 Players
                 </span>
 
-
-                <span class="
-                  landing-mode-sub
-                ">
+                <span class="landing-mode-sub">
                   Split Screen
                 </span>
-
               </button>
-
-
-              <!-- AI -->
 
               <button
                 type="button"
-                class="
-                  landing-mode-button
-                  active
-                "
+                class="landing-mode-button active"
                 data-game-mode="ai"
               >
-
-                <span class="
-                  landing-mode-main
-                ">
+                <span class="landing-mode-main">
                   VS AI
                 </span>
 
-
-                <span class="
-                  landing-mode-sub
-                ">
+                <span class="landing-mode-sub">
                   NOVA AI
                 </span>
-
               </button>
-
             </div>
-
           </div>
 
 
@@ -1110,98 +506,50 @@ export function setupLandingScreen(
                MAPS
           ================================================= -->
 
-          <div class="
-            mb-5
-          ">
-
-            <div class="
-              mb-2
-              flex
-              items-center
-              justify-between
-            ">
-
-              <span class="
-                text-[10px]
-                uppercase
-                tracking-[0.4em]
-                text-white/40
-              ">
+          <div class="mb-5">
+            <div class="mb-2 flex items-center justify-between">
+              <span
+                class="
+                  text-[10px] uppercase
+                  tracking-[0.4em] text-white/40
+                "
+              >
                 Select track
               </span>
 
-
-              <span class="
-                text-[8px]
-                uppercase
-                tracking-[0.2em]
-                text-white/20
-              ">
+              <span
+                class="
+                  text-[8px] uppercase
+                  tracking-[0.2em] text-white/20
+                "
+              >
                 L1 → L5
               </span>
-
             </div>
 
+            <div class="landing-map-grid">
+              ${MAPS.map((map, index) => {
+                const level = index + 1;
 
-            <!--
-              No map-name section.
-              No description section.
-              Only map previews.
-            -->
+                return `
+                  <button
+                    type="button"
+                    class="map-chip landing-map-card"
+                    data-map-id="${map.id}"
+                    aria-label="Select ${map.name}"
+                    title="${map.name}"
+                  >
+                    <span class="map-level">
+                      L${level}
+                    </span>
 
-            <div class="
-              landing-map-grid
-            ">
-
-              ${MAPS.map(
-  (map, index) => {
-
-    const level =
-      index + 1;
-
-
-                  return `
-
-                    <button
-                      type="button"
-                      class="
-                        map-chip
-                        landing-map-card
-                      "
-                      data-map-id="${map.id}"
-                      aria-label="
-                        Select ${map.name}
-                      "
-                      title="${map.name}"
-                    >
-
-                      <span class="
-                        map-level
-                      ">
-                        L${level}
-                      </span>
-
-
-                      <span class="
-                        map-preview-shell
-                      ">
-
-                        ${createMapPreviewSVG(
-                          map
-                        )}
-
-                      </span>
-
-                    </button>
-
-                  `;
-
-                }
-
-              ).join("")}
-
+                    <span class="map-preview-shell">
+                      ${createMapPreviewSVG(map)}
+                    </span>
+                  </button>
+                `;
+              }).join("")}
             </div>
-
           </div>
 
 
@@ -1209,110 +557,68 @@ export function setupLandingScreen(
                LAPS
           ================================================= -->
 
-          <div class="
-            mb-2
-            text-[9px]
-            uppercase
-            tracking-[0.35em]
-            text-white/40
-          ">
+          <div
+            class="
+              mb-2 text-[9px] uppercase
+              tracking-[0.35em] text-white/40
+            "
+          >
             Number of laps
           </div>
 
-
-          <div class="
-            flex
-            flex-wrap
-            items-center
-            gap-2
-          ">
-
+          <div class="flex flex-wrap items-center gap-2">
             <button
               id="lap-minus"
-              class="
-                lap-step
-                compact-lap-step
-              "
+              class="lap-step compact-lap-step"
               aria-label="Fewer laps"
             >
               &minus;
             </button>
 
-
             <div
               id="lap-value"
-              class="
-                lap-value
-                compact-lap-value
-              "
+              class="lap-value compact-lap-value"
             >
               3
             </div>
 
-
             <button
               id="lap-plus"
-              class="
-                lap-step
-                compact-lap-step
-              "
+              class="lap-step compact-lap-step"
               aria-label="More laps"
             >
               +
             </button>
 
-
-            <div class="
-              ml-1
-              flex
-              gap-1.5
-            ">
-
+            <div class="ml-1 flex gap-1.5">
               <button
-                class="
-                  lap-chip
-                  compact-lap-chip
-                "
+                class="lap-chip compact-lap-chip"
                 data-laps="1"
               >
                 1
               </button>
 
-
               <button
-                class="
-                  lap-chip
-                  compact-lap-chip
-                "
+                class="lap-chip compact-lap-chip"
                 data-laps="3"
               >
                 3
               </button>
 
-
               <button
-                class="
-                  lap-chip
-                  compact-lap-chip
-                "
+                class="lap-chip compact-lap-chip"
                 data-laps="5"
               >
                 5
               </button>
 
-
               <button
-                class="
-                  lap-chip
-                  compact-lap-chip
-                "
+                class="lap-chip compact-lap-chip"
                 data-laps="10"
               >
                 10
               </button>
-
             </div>
-
           </div>
 
 
@@ -1324,25 +630,18 @@ export function setupLandingScreen(
             id="start-race"
             class="
               mt-5
-              border
-              border-red-500/60
+              border border-red-500/60
               bg-red-600
-              px-9
-              py-3
-              text-xs
-              font-semibold
-              uppercase
-              tracking-[0.3em]
-              text-white
-              transition-all
-              duration-300
+              px-9 py-3
+              text-xs font-semibold uppercase
+              tracking-[0.3em] text-white
+              transition-all duration-300
               hover:bg-red-500
               hover:shadow-[0_0_35px_rgba(239,68,68,0.5)]
             "
           >
             Start Race
           </button>
-
         </div>
 
 
@@ -1353,68 +652,34 @@ export function setupLandingScreen(
         <div
           id="landing-controls"
           class="
-            mt-7
-            grid
-            gap-2
-            text-[10px]
-            uppercase
-            tracking-[0.2em]
-            text-white/40
+            mt-7 grid gap-2
+            text-[10px] uppercase
+            tracking-[0.2em] text-white/40
           "
         >
-
-          <div class="
-            flex
-            items-center
-            gap-4
-          ">
-
-            <span class="
-              w-24
-              font-bold
-              text-[#2aa8ff]
-            ">
+          <div class="flex items-center gap-4">
+            <span class="w-24 font-bold text-[#2aa8ff]">
               Player 1
             </span>
 
-
             <span>
-              W A S D
-              &nbsp;·&nbsp;
-              Space = Nitro
+              W A S D &nbsp;·&nbsp; Space = Nitro
             </span>
-
           </div>
 
-
-          <div class="
-            flex
-            items-center
-            gap-4
-          ">
-
+          <div class="flex items-center gap-4">
             <span
               id="player-two-label"
-              class="
-                w-24
-                font-bold
-                text-[#ff4d4d]
-              "
+              class="w-24 font-bold text-[#ff4d4d]"
             >
               NOVA AI
             </span>
 
-
-            <span
-              id="player-two-controls"
-            >
+            <span id="player-two-controls">
               Autonomous Rival
             </span>
-
           </div>
-
         </div>
-
       </section>
 
 
@@ -1422,1167 +687,496 @@ export function setupLandingScreen(
            RIGHT SHOWROOM
       ===================================================== -->
 
-      <section class="
-        relative
-        flex
-        h-[560px]
-        items-center
-        justify-center
-      ">
+      <section
+        class="
+          relative flex h-[560px]
+          items-center justify-center
+        "
+      >
+        <div
+          class="
+            absolute h-[430px] w-[430px]
+            rounded-full border border-white/[0.04]
+          "
+        ></div>
 
+        <div
+          class="
+            absolute h-[330px] w-[330px]
+            rounded-full border border-red-500/10
+          "
+        ></div>
 
-        <!-- BACKPLATE -->
-
-        <div class="
-          absolute
-          h-[430px]
-          w-[430px]
-          rounded-full
-          border
-          border-white/[0.04]
-        ">
-        </div>
-
-
-        <div class="
-          absolute
-          h-[330px]
-          w-[330px]
-          rounded-full
-          border
-          border-red-500/10
-        ">
-        </div>
-
-
-        <!-- DECORATIVE TEXT -->
-
-        <div class="
-          pointer-events-none
-          absolute
-          right-[-20px]
-          top-[15%]
-          select-none
-          text-[110px]
-          font-black
-          tracking-[-0.08em]
-          text-white/[0.018]
-          lg:text-[150px]
-        ">
+        <div
+          class="
+            pointer-events-none
+            absolute right-[-20px] top-[15%]
+            select-none
+            text-[110px] font-black
+            tracking-[-0.08em]
+            text-white/[0.018]
+            lg:text-[150px]
+          "
+        >
           01
         </div>
-
-
-        <!-- THREE.JS PREVIEW -->
 
         <div
           id="car-preview"
           class="
-            relative
-            z-10
-            h-[500px]
-            w-full
+            relative z-10
+            h-[500px] w-full
             max-w-[760px]
           "
+        ></div>
+
+        <div
+          class="
+            absolute bottom-14 right-4
+            flex items-center gap-4
+            text-[9px] uppercase
+            tracking-[0.3em] text-white/25
+          "
         >
+          <span>Race Prototype</span>
+
+          <div class="h-px w-10 bg-red-500/50"></div>
+
+          <span>01</span>
         </div>
-
-
-        <!-- SHOWROOM LABEL -->
-
-        <div class="
-          absolute
-          bottom-14
-          right-4
-          flex
-          items-center
-          gap-4
-          text-[9px]
-          uppercase
-          tracking-[0.3em]
-          text-white/25
-        ">
-
-          <span>
-            Race Prototype
-          </span>
-
-
-          <div class="
-            h-px
-            w-10
-            bg-red-500/50
-          ">
-          </div>
-
-
-          <span>
-            01
-          </span>
-
-        </div>
-
       </section>
-
     </main>
 
-
-    <!-- BOTTOM BORDER -->
-
-    <div class="
-      absolute
-      bottom-0
-      left-0
-      h-px
-      w-full
-      bg-gradient-to-r
-      from-transparent
-      via-red-500/30
-      to-transparent
-    ">
-    </div>
-
+    <div
+      class="
+        absolute bottom-0 left-0
+        h-px w-full
+        bg-gradient-to-r
+        from-transparent via-red-500/30 to-transparent
+      "
+    ></div>
   `;
 
-
-  document.body.appendChild(
-    landing
-  );
+  document.body.appendChild(landing);
 
 
   // ==========================================================
   // DOM
   // ==========================================================
 
-  const container =
-    document.getElementById(
-      "car-preview"
-    );
+  const container = document.getElementById("car-preview");
+  const startButton = document.getElementById("start-race");
+  const lapValue = document.getElementById("lap-value");
 
+  const lapChips = landing.querySelectorAll(".lap-chip");
+  const mapButtons = landing.querySelectorAll(".map-chip");
+  const modeButtons = landing.querySelectorAll("[data-game-mode]");
 
-  const startButton =
-    document.getElementById(
-      "start-race"
-    );
-
-
-  const lapValue =
-    document.getElementById(
-      "lap-value"
-    );
-
-
-  const lapChips =
-    landing.querySelectorAll(
-      ".lap-chip"
-    );
-
-
-  const mapButtons =
-    landing.querySelectorAll(
-      ".map-chip"
-    );
-
-
-  const modeButtons =
-    landing.querySelectorAll(
-      "[data-game-mode]"
-    );
-
-
-  const playerTwoLabel =
-    document.getElementById(
-      "player-two-label"
-    );
-
-
-  const playerTwoControls =
-    document.getElementById(
-      "player-two-controls"
-    );
-
-
-  const modeStatus =
-    document.getElementById(
-      "landing-mode-status"
-    );
-
-
-  const modeTopRight =
-    document.getElementById(
-      "landing-mode-top-right"
-    );
+  const playerTwoLabel = document.getElementById("player-two-label");
+  const playerTwoControls = document.getElementById("player-two-controls");
+  const modeStatus = document.getElementById("landing-mode-status");
+  const modeTopRight = document.getElementById("landing-mode-top-right");
 
 
   // ==========================================================
   // GAME MODE
-  //
-  // AI is default.
-  //
-  // AI difficulty is permanently HARD.
-  //
-  // No Easy / Normal / Hard selector.
   // ==========================================================
 
-  let gameMode =
-    "ai";
+  let gameMode = "ai";
+  const aiDifficulty = "hard";
 
+  function setGameMode(mode) {
+    gameMode = mode === "local" ? "local" : "ai";
 
-  const aiDifficulty =
-    "hard";
+    modeButtons.forEach((button) => {
+      button.classList.toggle(
+        "active",
+        button.dataset.gameMode === gameMode
+      );
+    });
 
-
-  function setGameMode(
-    mode
-  ) {
-
-    gameMode =
-
-      mode === "local"
-
-        ? "local"
-
-        : "ai";
-
-
-    modeButtons.forEach(
-      (button) => {
-
-        button.classList.toggle(
-
-          "active",
-
-          button.dataset.gameMode ===
-            gameMode
-
-        );
-
-      }
-    );
-
-
-    // --------------------------------------------------------
-    // AI MODE
-    // --------------------------------------------------------
-
-    if (
-      gameMode === "ai"
-    ) {
-
-      playerTwoLabel.textContent =
-        "NOVA AI";
-
-
-      playerTwoControls.textContent =
-        "Autonomous Rival";
-
-
-      modeStatus.textContent =
-        "SINGLE PLAYER · VS NOVA AI";
-
-
-      modeTopRight.textContent =
-        "// AI RACE";
-
-    }
-
-
-    // --------------------------------------------------------
-    // LOCAL 2 PLAYER
-    // --------------------------------------------------------
-
-    else {
-
-      playerTwoLabel.textContent =
-        "Player 2";
-
-
+    if (gameMode === "ai") {
+      playerTwoLabel.textContent = "NOVA AI";
+      playerTwoControls.textContent = "Autonomous Rival";
+      modeStatus.textContent = "SINGLE PLAYER · VS NOVA AI";
+      modeTopRight.textContent = "// AI RACE";
+    } else {
+      playerTwoLabel.textContent = "Player 2";
       playerTwoControls.innerHTML =
         "&uarr; &larr; &darr; &rarr; &nbsp;·&nbsp; Enter = Nitro";
 
-
-      modeStatus.textContent =
-        "TWO PLAYERS · ONE KEYBOARD";
-
-
-      modeTopRight.textContent =
-        "// 2 PLAYER SPLIT-SCREEN RACE";
-
+      modeStatus.textContent = "TWO PLAYERS · ONE KEYBOARD";
+      modeTopRight.textContent = "// 2 PLAYER SPLIT-SCREEN RACE";
     }
-
   }
 
+  modeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      setGameMode(button.dataset.gameMode);
+    });
+  });
 
-  modeButtons.forEach(
-    (button) => {
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          setGameMode(
-            button.dataset.gameMode
-          );
-
-        }
-      );
-
-    }
-  );
-
-
-  // AI selected by default.
-
-  setGameMode(
-    "ai"
-  );
+  setGameMode("ai");
 
 
   // ==========================================================
   // MAP SELECTION
   // ==========================================================
 
-  let selectedMap =
-    DEFAULT_MAP;
+  let selectedMap = DEFAULT_MAP;
 
+  function setMap(map) {
+    selectedMap = map;
 
-  function setMap(
-    map
-  ) {
-
-    selectedMap =
-      map;
-
-
-    mapButtons.forEach(
-      (button) => {
-
-        button.classList.toggle(
-
-          "active",
-
-          button.dataset.mapId ===
-            map.id
-
-        );
-
-      }
-    );
-
+    mapButtons.forEach((button) => {
+      button.classList.toggle(
+        "active",
+        button.dataset.mapId === map.id
+      );
+    });
   }
 
-
-  mapButtons.forEach(
-    (button) => {
-
-      button.addEventListener(
-        "click",
-        () => {
-
-          const map =
-            MAPS.find(
-              (item) =>
-
-                item.id ===
-                button.dataset.mapId
-            );
-
-
-          if (
-            map
-          ) {
-
-            setMap(
-              map
-            );
-
-          }
-
-        }
+  mapButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const map = MAPS.find(
+        (item) => item.id === button.dataset.mapId
       );
 
-    }
-  );
+      if (map) {
+        setMap(map);
+      }
+    });
+  });
 
-
-  setMap(
-    DEFAULT_MAP
-  );
+  setMap(DEFAULT_MAP);
 
 
   // ==========================================================
   // LAP SELECTION
   // ==========================================================
 
-  const MIN_LAPS =
-    1;
+  const MIN_LAPS = 1;
+  const MAX_LAPS = 20;
 
+  let laps = 3;
 
-  const MAX_LAPS =
-    20;
-
-
-  let laps =
-    3;
-
-
-  function setLaps(
-    value
-  ) {
-
-    laps =
-      Math.min(
-
-        MAX_LAPS,
-
-        Math.max(
-          MIN_LAPS,
-          value
-        )
-
-      );
-
-
-    lapValue.textContent =
-      laps;
-
-
-    lapChips.forEach(
-      (chip) => {
-
-        chip.classList.toggle(
-
-          "active",
-
-          Number(
-            chip.dataset.laps
-          ) ===
-            laps
-
-        );
-
-      }
+  function setLaps(value) {
+    laps = Math.min(
+      MAX_LAPS,
+      Math.max(MIN_LAPS, value)
     );
 
+    lapValue.textContent = laps;
+
+    lapChips.forEach((chip) => {
+      chip.classList.toggle(
+        "active",
+        Number(chip.dataset.laps) === laps
+      );
+    });
   }
 
+  document
+    .getElementById("lap-minus")
+    .addEventListener("click", () => {
+      setLaps(laps - 1);
+    });
 
   document
-    .getElementById(
-      "lap-minus"
-    )
-    .addEventListener(
-      "click",
-      () => {
+    .getElementById("lap-plus")
+    .addEventListener("click", () => {
+      setLaps(laps + 1);
+    });
 
-        setLaps(
-          laps - 1
-        );
+  lapChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      setLaps(Number(chip.dataset.laps));
+    });
+  });
 
-      }
-    );
-
-
-  document
-    .getElementById(
-      "lap-plus"
-    )
-    .addEventListener(
-      "click",
-      () => {
-
-        setLaps(
-          laps + 1
-        );
-
-      }
-    );
-
-
-  lapChips.forEach(
-    (chip) => {
-
-      chip.addEventListener(
-        "click",
-        () => {
-
-          setLaps(
-
-            Number(
-              chip.dataset.laps
-            )
-
-          );
-
-        }
-      );
-
-    }
-  );
-
-
-  setLaps(
-    3
-  );
+  setLaps(3);
 
 
   // ==========================================================
   // THREE.JS SHOWROOM
   // ==========================================================
 
-  const previewScene =
-    new THREE.Scene();
+  const previewScene = new THREE.Scene();
 
-
-  const previewCamera =
-    new THREE.PerspectiveCamera(
-
-      32,
-
-      container.clientWidth /
-        container.clientHeight,
-
-      0.1,
-
-      100
-
-    );
-
-
-  previewCamera.position.set(
-    4.4,
-    2.5,
-    5.5
+  const previewCamera = new THREE.PerspectiveCamera(
+    32,
+    container.clientWidth / container.clientHeight,
+    0.1,
+    100
   );
 
+  previewCamera.position.set(4.4, 2.5, 5.5);
+  previewCamera.lookAt(0, 0.45, 0);
 
-  previewCamera.lookAt(
-    0,
-    0.45,
-    0
-  );
-
-
-  const previewRenderer =
-    new THREE.WebGLRenderer({
-
-      antialias:
-        true,
-
-      alpha:
-        true
-
-    });
-
+  const previewRenderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+  });
 
   previewRenderer.setSize(
-
     container.clientWidth,
-
     container.clientHeight
-
   );
-
 
   previewRenderer.setPixelRatio(
-
-    Math.min(
-      window.devicePixelRatio,
-      2
-    )
-
+    Math.min(window.devicePixelRatio, 2)
   );
 
+  previewRenderer.setClearColor(0x000000, 0);
 
-  previewRenderer.setClearColor(
-    0x000000,
-    0
-  );
+  previewRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  previewRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+  previewRenderer.toneMappingExposure = 1.35;
 
-
-  previewRenderer.outputColorSpace =
-    THREE.SRGBColorSpace;
-
-
-  previewRenderer.toneMapping =
-    THREE.ACESFilmicToneMapping;
-
-
-  previewRenderer.toneMappingExposure =
-    1.35;
-
-
-  container.appendChild(
-    previewRenderer.domElement
-  );
+  container.appendChild(previewRenderer.domElement);
 
 
   // ==========================================================
   // LIGHTING
   // ==========================================================
 
-  const hemiLight =
-    new THREE.HemisphereLight(
-
-      0xb8d5ff,
-
-      0x160004,
-
-      2.2
-
-    );
-
-
-  previewScene.add(
-    hemiLight
+  const hemiLight = new THREE.HemisphereLight(
+    0xb8d5ff,
+    0x160004,
+    2.2
   );
 
+  previewScene.add(hemiLight);
 
-  const frontLight =
-    new THREE.DirectionalLight(
-
-      0xffffff,
-
-      3.5
-
-    );
-
-
-  frontLight.position.set(
-    4,
-    5,
-    5
+  const frontLight = new THREE.DirectionalLight(
+    0xffffff,
+    3.5
   );
 
+  frontLight.position.set(4, 5, 5);
+  previewScene.add(frontLight);
 
-  previewScene.add(
-    frontLight
+  const blueLight = new THREE.PointLight(
+    0x0099ff,
+    10,
+    9
   );
 
+  blueLight.position.set(3.5, 1.6, 1.5);
+  previewScene.add(blueLight);
 
-  const blueLight =
-    new THREE.PointLight(
-
-      0x0099ff,
-
-      10,
-
-      9
-
-    );
-
-
-  blueLight.position.set(
-    3.5,
-    1.6,
-    1.5
+  const redLight = new THREE.PointLight(
+    0xff1f2d,
+    13,
+    10
   );
 
-
-  previewScene.add(
-    blueLight
-  );
-
-
-  const redLight =
-    new THREE.PointLight(
-
-      0xff1f2d,
-
-      13,
-
-      10
-
-    );
-
-
-  redLight.position.set(
-    -3,
-    1,
-    2.5
-  );
-
-
-  previewScene.add(
-    redLight
-  );
+  redLight.position.set(-3, 1, 2.5);
+  previewScene.add(redLight);
 
 
   // ==========================================================
   // PLATFORM
   // ==========================================================
 
-  const platformGroup =
-    new THREE.Group();
+  const platformGroup = new THREE.Group();
+  previewScene.add(platformGroup);
 
-
-  previewScene.add(
-    platformGroup
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(2.45, 80),
+    new THREE.MeshBasicMaterial({
+      color: 0x220000,
+      transparent: true,
+      opacity: 0.28,
+    })
   );
 
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = -0.32;
 
-  // ----------------------------------------------------------
-  // SHADOW
-  // ----------------------------------------------------------
+  platformGroup.add(shadow);
 
-  const shadow =
-    new THREE.Mesh(
-
-      new THREE.CircleGeometry(
-        2.45,
-        80
-      ),
-
-      new THREE.MeshBasicMaterial({
-
-        color:
-          0x220000,
-
-        transparent:
-          true,
-
-        opacity:
-          0.28
-
-      })
-
-    );
-
-
-  shadow.rotation.x =
-    -Math.PI / 2;
-
-
-  shadow.position.y =
-    -0.32;
-
-
-  platformGroup.add(
-    shadow
+  const platformBottom = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      2.18,
+      2.28,
+      0.22,
+      96
+    ),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x180203,
+      metalness: 0.95,
+      roughness: 0.3,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.18,
+    })
   );
 
+  platformBottom.position.y = -0.23;
+  platformGroup.add(platformBottom);
 
-  // ----------------------------------------------------------
-  // BOTTOM FOUNDATION
-  // ----------------------------------------------------------
-
-  const platformBottom =
-    new THREE.Mesh(
-
-      new THREE.CylinderGeometry(
-        2.18,
-        2.28,
-        0.22,
-        96
-      ),
-
-      new THREE.MeshPhysicalMaterial({
-
-        color:
-          0x180203,
-
-        metalness:
-          0.95,
-
-        roughness:
-          0.3,
-
-        clearcoat:
-          0.8,
-
-        clearcoatRoughness:
-          0.18
-
-      })
-
-    );
-
-
-  platformBottom.position.y =
-    -0.23;
-
-
-  platformGroup.add(
-    platformBottom
+  const platformMain = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      2.02,
+      2.14,
+      0.2,
+      96
+    ),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x5f0508,
+      metalness: 0.85,
+      roughness: 0.16,
+      clearcoat: 1,
+      clearcoatRoughness: 0.05,
+    })
   );
 
+  platformMain.position.y = -0.12;
+  platformGroup.add(platformMain);
 
-  // ----------------------------------------------------------
-  // MAIN PLATFORM
-  // ----------------------------------------------------------
-
-  const platformMain =
-    new THREE.Mesh(
-
-      new THREE.CylinderGeometry(
-        2.02,
-        2.14,
-        0.2,
-        96
-      ),
-
-      new THREE.MeshPhysicalMaterial({
-
-        color:
-          0x5f0508,
-
-        metalness:
-          0.85,
-
-        roughness:
-          0.16,
-
-        clearcoat:
-          1,
-
-        clearcoatRoughness:
-          0.05
-
-      })
-
-    );
-
-
-  platformMain.position.y =
-    -0.12;
-
-
-  platformGroup.add(
-    platformMain
+  const platformTop = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      1.87,
+      1.92,
+      0.05,
+      96
+    ),
+    new THREE.MeshPhysicalMaterial({
+      color: 0xb80e14,
+      metalness: 0.8,
+      roughness: 0.12,
+      clearcoat: 1,
+      clearcoatRoughness: 0.04,
+    })
   );
 
+  platformTop.position.y = -0.01;
+  platformGroup.add(platformTop);
 
-  // ----------------------------------------------------------
-  // TOP PLATE
-  // ----------------------------------------------------------
-
-  const platformTop =
-    new THREE.Mesh(
-
-      new THREE.CylinderGeometry(
-        1.87,
-        1.92,
-        0.05,
-        96
-      ),
-
-      new THREE.MeshPhysicalMaterial({
-
-        color:
-          0xb80e14,
-
-        metalness:
-          0.8,
-
-        roughness:
-          0.12,
-
-        clearcoat:
-          1,
-
-        clearcoatRoughness:
-          0.04
-
-      })
-
-    );
-
-
-  platformTop.position.y =
-    -0.01;
-
-
-  platformGroup.add(
-    platformTop
+  const centerPlate = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      1.15,
+      1.2,
+      0.035,
+      96
+    ),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x8b0b10,
+      metalness: 0.75,
+      roughness: 0.14,
+      clearcoat: 1,
+    })
   );
 
+  centerPlate.position.y = 0.02;
+  platformGroup.add(centerPlate);
 
-  // ----------------------------------------------------------
-  // CENTER PLATE
-  // ----------------------------------------------------------
-
-  const centerPlate =
-    new THREE.Mesh(
-
-      new THREE.CylinderGeometry(
-        1.15,
-        1.2,
-        0.035,
-        96
-      ),
-
-      new THREE.MeshPhysicalMaterial({
-
-        color:
-          0x8b0b10,
-
-        metalness:
-          0.75,
-
-        roughness:
-          0.14,
-
-        clearcoat:
-          1
-
-      })
-
-    );
-
-
-  centerPlate.position.y =
-    0.02;
-
-
-  platformGroup.add(
-    centerPlate
+  const centerCore = new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      0.55,
+      0.55,
+      0.025,
+      64
+    ),
+    new THREE.MeshPhysicalMaterial({
+      color: 0x120405,
+      metalness: 0.8,
+      roughness: 0.35,
+      clearcoat: 0.5,
+    })
   );
 
+  centerCore.position.y = 0.04;
+  platformGroup.add(centerCore);
 
-  // ----------------------------------------------------------
-  // CENTER CORE
-  // ----------------------------------------------------------
-
-  const centerCore =
-    new THREE.Mesh(
-
-      new THREE.CylinderGeometry(
-        0.55,
-        0.55,
-        0.025,
-        64
-      ),
-
-      new THREE.MeshPhysicalMaterial({
-
-        color:
-          0x120405,
-
-        metalness:
-          0.8,
-
-        roughness:
-          0.35,
-
-        clearcoat:
-          0.5
-
-      })
-
-    );
-
-
-  centerCore.position.y =
-    0.04;
-
-
-  platformGroup.add(
-    centerCore
+  const neonRingOuter = new THREE.Mesh(
+    new THREE.TorusGeometry(
+      1.88,
+      0.03,
+      16,
+      120
+    ),
+    new THREE.MeshBasicMaterial({
+      color: 0xff3b3b,
+    })
   );
 
+  neonRingOuter.rotation.x = Math.PI / 2;
+  neonRingOuter.position.y = 0.02;
 
-  // ----------------------------------------------------------
-  // OUTER NEON RING
-  // ----------------------------------------------------------
+  platformGroup.add(neonRingOuter);
 
-  const neonRingOuter =
-    new THREE.Mesh(
-
-      new THREE.TorusGeometry(
-        1.88,
-        0.03,
-        16,
-        120
-      ),
-
-      new THREE.MeshBasicMaterial({
-
-        color:
-          0xff3b3b
-
-      })
-
-    );
-
-
-  neonRingOuter.rotation.x =
-    Math.PI / 2;
-
-
-  neonRingOuter.position.y =
-    0.02;
-
-
-  platformGroup.add(
-    neonRingOuter
+  const neonRingInner = new THREE.Mesh(
+    new THREE.TorusGeometry(
+      1.18,
+      0.018,
+      12,
+      100
+    ),
+    new THREE.MeshBasicMaterial({
+      color: 0xff5a5a,
+    })
   );
 
+  neonRingInner.rotation.x = Math.PI / 2;
+  neonRingInner.position.y = 0.045;
 
-  // ----------------------------------------------------------
-  // INNER NEON RING
-  // ----------------------------------------------------------
+  platformGroup.add(neonRingInner);
 
-  const neonRingInner =
-    new THREE.Mesh(
-
-      new THREE.TorusGeometry(
-        1.18,
-        0.018,
-        12,
-        100
-      ),
-
-      new THREE.MeshBasicMaterial({
-
-        color:
-          0xff5a5a
-
-      })
-
-    );
-
-
-  neonRingInner.rotation.x =
-    Math.PI / 2;
-
-
-  neonRingInner.position.y =
-    0.045;
-
-
-  platformGroup.add(
-    neonRingInner
+  const lowerRing = new THREE.Mesh(
+    new THREE.TorusGeometry(
+      2.05,
+      0.02,
+      12,
+      100
+    ),
+    new THREE.MeshBasicMaterial({
+      color: 0x7a0006,
+    })
   );
 
+  lowerRing.rotation.x = Math.PI / 2;
+  lowerRing.position.y = -0.24;
 
-  // ----------------------------------------------------------
-  // LOWER RING
-  // ----------------------------------------------------------
-
-  const lowerRing =
-    new THREE.Mesh(
-
-      new THREE.TorusGeometry(
-        2.05,
-        0.02,
-        12,
-        100
-      ),
-
-      new THREE.MeshBasicMaterial({
-
-        color:
-          0x7a0006
-
-      })
-
-    );
-
-
-  lowerRing.rotation.x =
-    Math.PI / 2;
-
-
-  lowerRing.position.y =
-    -0.24;
-
-
-  platformGroup.add(
-    lowerRing
-  );
+  platformGroup.add(lowerRing);
 
 
   // ==========================================================
   // PLATFORM ACCENTS
   // ==========================================================
 
-  const accentGroup =
-    new THREE.Group();
+  const accentGroup = new THREE.Group();
+  platformGroup.add(accentGroup);
 
-
-  platformGroup.add(
-    accentGroup
+  const accentGeo = new THREE.BoxGeometry(
+    0.12,
+    0.03,
+    0.03
   );
 
+  const accentMat = new THREE.MeshBasicMaterial({
+    color: 0xff4040,
+  });
 
-  const accentGeo =
-    new THREE.BoxGeometry(
-      0.12,
-      0.03,
-      0.03
+  for (let i = 0; i < 18; i++) {
+    const accent = new THREE.Mesh(
+      accentGeo,
+      accentMat
     );
 
-
-  const accentMat =
-    new THREE.MeshBasicMaterial({
-
-      color:
-        0xff4040
-
-    });
-
-
-  for (
-    let i = 0;
-    i < 18;
-    i++
-  ) {
-
-    const accent =
-      new THREE.Mesh(
-        accentGeo,
-        accentMat
-      );
-
-
-    const angle =
-
-      (
-        i /
-        18
-      ) *
-
-      Math.PI *
-      2;
-
-
-    const radius =
-      1.63;
-
+    const angle = (i / 18) * Math.PI * 2;
+    const radius = 1.63;
 
     accent.position.set(
-
-      Math.cos(
-        angle
-      ) *
-      radius,
-
+      Math.cos(angle) * radius,
       -0.02,
-
-      Math.sin(
-        angle
-      ) *
-      radius
-
+      Math.sin(angle) * radius
     );
 
+    accent.lookAt(0, -0.02, 0);
+    accent.rotateY(Math.PI / 2);
 
-    accent.lookAt(
-      0,
-      -0.02,
-      0
-    );
-
-
-    accent.rotateY(
-      Math.PI / 2
-    );
-
-
-    accentGroup.add(
-      accent
-    );
-
+    accentGroup.add(accent);
   }
 
 
@@ -2590,127 +1184,63 @@ export function setupLandingScreen(
   // CAR
   // ==========================================================
 
-  const loader =
-    new GLTFLoader();
+  const loader = new GLTFLoader();
 
+  let previewCar = null;
+  let previewWheels = [];
 
-  let previewCar =
-    null;
+  loader.load(CAR_URL, (gltf) => {
+    previewCar = gltf.scene;
 
+    previewWheels = applyCarStyle(
+      previewCar
+    );
 
-  let previewWheels =
-    [];
+    previewCar.scale.set(
+      1.05,
+      1.05,
+      1.05
+    );
 
+    previewCar.position.set(
+      0.15,
+      0.22,
+      0.35
+    );
 
-  loader.load(
-
-    CAR_URL,
-
-    (gltf) => {
-
-      previewCar =
-        gltf.scene;
-
-
-      previewWheels =
-        applyCarStyle(
-          previewCar
-        );
-
-
-      previewCar.scale.set(
-        1.05,
-        1.05,
-        1.05
-      );
-
-
-      previewCar.position.set(
-        0.15,
-        0.22,
-        0.35
-      );
-
-
-      previewScene.add(
-        previewCar
-      );
-
-    }
-
-  );
+    previewScene.add(previewCar);
+  });
 
 
   // ==========================================================
   // SHOWROOM ANIMATION
   // ==========================================================
 
-  let previewRunning =
-    true;
-
+  let previewRunning = true;
 
   function animatePreview() {
+    if (!previewRunning) return;
 
-    if (
-      !previewRunning
-    ) {
+    requestAnimationFrame(animatePreview);
 
-      return;
+    if (previewCar) {
+      previewCar.rotation.y += 0.004;
 
+      previewWheels.forEach((wheel) => {
+        wheel.rotation.x += 0.055;
+      });
     }
 
-
-    requestAnimationFrame(
-      animatePreview
-    );
-
-
-    if (
-      previewCar
-    ) {
-
-      previewCar.rotation.y +=
-        0.004;
-
-
-      previewWheels.forEach(
-        (wheel) => {
-
-          wheel.rotation.x +=
-            0.055;
-
-        }
-      );
-
-    }
-
-
-    neonRingOuter.rotation.z -=
-      0.003;
-
-
-    neonRingInner.rotation.z +=
-      0.002;
-
-
-    accentGroup.rotation.y +=
-      0.0015;
-
-
-    lowerRing.rotation.z +=
-      0.0012;
-
+    neonRingOuter.rotation.z -= 0.003;
+    neonRingInner.rotation.z += 0.002;
+    accentGroup.rotation.y += 0.0015;
+    lowerRing.rotation.z += 0.0012;
 
     previewRenderer.render(
-
       previewScene,
-
       previewCamera
-
     );
-
   }
-
 
   animatePreview();
 
@@ -2720,41 +1250,19 @@ export function setupLandingScreen(
   // ==========================================================
 
   function resizePreview() {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
 
-    const width =
-      container.clientWidth;
+    if (width <= 0 || height <= 0) return;
 
-
-    const height =
-      container.clientHeight;
-
-
-    if (
-      width <= 0 ||
-      height <= 0
-    ) {
-
-      return;
-
-    }
-
-
-    previewCamera.aspect =
-      width /
-      height;
-
-
-    previewCamera
-      .updateProjectionMatrix();
-
+    previewCamera.aspect = width / height;
+    previewCamera.updateProjectionMatrix();
 
     previewRenderer.setSize(
       width,
       height
     );
-
   }
-
 
   window.addEventListener(
     "resize",
@@ -2767,74 +1275,35 @@ export function setupLandingScreen(
   // ==========================================================
 
   function closeLanding() {
-
     unlockAudio();
 
-
     landing.classList.add(
-
       "opacity-0",
-
       "pointer-events-none"
-
     );
 
+    setTimeout(() => {
+      previewRunning = false;
 
-    setTimeout(
-      () => {
+      window.removeEventListener(
+        "resize",
+        resizePreview
+      );
 
-        previewRunning =
-          false;
+      previewRenderer.dispose();
+      landing.remove();
 
-
-        window.removeEventListener(
-          "resize",
-          resizePreview
-        );
-
-
-        previewRenderer.dispose();
-
-
-        landing.remove();
-
-
-        // ====================================================
-        // AI:
-        //
-        // mode = "ai"
-        // difficulty = "hard"
-        //
-        // LOCAL:
-        //
-        // mode = "local"
-        // difficulty value is ignored by gameplay.
-        // ====================================================
-
-        onStartRace(
-
-          laps,
-
-          selectedMap,
-
-          gameMode,
-
-          aiDifficulty
-
-        );
-
-      },
-
-      700
-
-    );
-
+      onStartRace(
+        laps,
+        selectedMap,
+        gameMode,
+        aiDifficulty
+      );
+    }, 700);
   }
-
 
   startButton.addEventListener(
     "click",
     closeLanding
   );
-
 }

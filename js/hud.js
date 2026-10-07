@@ -1,16 +1,27 @@
-// DOM heads-up display for the split screen
+// ============================================================
+// TIME HELPERS
+// ============================================================
 
 export function formatTime(seconds) {
-  if (seconds === null || seconds === undefined || !isFinite(seconds)) return "--:--.--";
+  if (seconds === null || seconds === undefined || !isFinite(seconds)) {
+    return "--:--.--";
+  }
+
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   const cs = Math.floor((seconds % 1) * 100);
+
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
 }
 
 function ordinal(n) {
   return n === 1 ? "1ST" : n === 2 ? "2ND" : `${n}TH`;
 }
+
+
+// ============================================================
+// HUD
+// ============================================================
 
 export class Hud {
   constructor(players) {
@@ -19,39 +30,66 @@ export class Hud {
 
     this.halves = players.map((player, i) => {
       const half = document.createElement("div");
+
       half.className = `hud-half ${i === 0 ? "hud-top" : "hud-bottom"}`;
       half.style.setProperty("--player", player.color);
 
       const hint =
-        i === 0 ? "W A S D &middot; SPACE = NITRO" : "&uarr; &larr; &darr; &rarr; &middot; ENTER = NITRO";
+        i === 0
+          ? "W A S D &middot; SPACE = NITRO"
+          : "&uarr; &larr; &darr; &rarr; &middot; ENTER = NITRO";
 
       half.innerHTML = `
         <div class="hud-tag">
           <b data-el="name">${player.name}</b>
           <span data-el="hint">${hint}</span>
         </div>
+
         <div class="hud-info">
-          <div><small>LAP</small><b data-el="lap">1/3</b></div>
-          <div><small>POS</small><b data-el="pos">1/2</b></div>
+          <div>
+            <small>LAP</small>
+            <b data-el="lap">1/3</b>
+          </div>
+          <div>
+            <small>POS</small>
+            <b data-el="pos">1/2</b>
+          </div>
         </div>
+
         <div class="hud-times">
-          <div><small>LAP TIME</small><b data-el="time">00:00.00</b></div>
-          <div><small>BEST</small><b data-el="best">--:--.--</b></div>
+          <div>
+            <small>LAP TIME</small>
+            <b data-el="time">00:00.00</b>
+          </div>
+          <div>
+            <small>BEST</small>
+            <b data-el="best">--:--.--</b>
+          </div>
         </div>
-        <div class="hud-speed"><b data-el="speed">0</b><span>KM/H</span></div>
-        <div class="hud-nitro"><span>NITRO</span><div class="hud-bar"><i data-el="nitro"></i></div></div>
+
+        <div class="hud-speed">
+          <b data-el="speed">0</b>
+          <span>KM/H</span>
+        </div>
+
+        <div class="hud-nitro">
+          <span>NITRO</span>
+          <div class="hud-bar">
+            <i data-el="nitro"></i>
+          </div>
+        </div>
+
         <div class="hud-msg" data-el="msg"></div>
       `;
 
       this.root.appendChild(half);
 
       const q = (name) => half.querySelector(`[data-el="${name}"]`);
+
       return {
         root: half,
-
         name: q("name"),
         hint: q("hint"),
-
         lap: q("lap"),
         pos: q("pos"),
         time: q("time"),
@@ -59,287 +97,202 @@ export class Hud {
         speed: q("speed"),
         nitro: q("nitro"),
         msg: q("msg"),
-
-        nitroBar:
-          q("nitro").parentElement,
+        nitroBar: q("nitro").parentElement,
       };
     });
 
-    this.divider =
-      document.createElement("div");
+    this.divider = document.createElement("div");
+    this.divider.className = "hud-divider";
 
-    this.divider.className =
-      "hud-divider";
-
-    this.root.appendChild(
-      this.divider
-    );
-
+    this.root.appendChild(this.divider);
     document.body.appendChild(this.root);
+
     this.results = null;
     this.pauseMenu = null;
   }
 
+
   // ==========================================================
-// PAUSE MENU
-// ==========================================================
+  // PAUSE MENU
+  // ==========================================================
 
-showPauseMenu({
-  onResume,
-  onRestart,
-  onMenu
-}) {
+  showPauseMenu({ onResume, onRestart, onMenu }) {
+    this.hidePauseMenu();
 
-  this.hidePauseMenu();
+    const overlay = document.createElement("div");
+    overlay.className = "pause-overlay";
 
+    overlay.innerHTML = `
+      <div class="pause-card">
+        <div class="pause-kicker">ZERO GRAVITY</div>
 
-  const overlay =
-    document.createElement(
-      "div"
-    );
+        <h2>PAUSED</h2>
 
+        <div class="pause-line"></div>
 
-  overlay.className =
-    "pause-overlay";
+        <div class="pause-buttons">
+          <button type="button" data-pause-action="resume">
+            RESUME
+          </button>
 
+          <button type="button" data-pause-action="restart">
+            RESTART
+          </button>
 
-  overlay.innerHTML = `
+          <button
+            type="button"
+            class="pause-menu-button"
+            data-pause-action="menu"
+          >
+            MAIN MENU
+          </button>
+        </div>
 
-    <div class="pause-card">
-
-      <div class="pause-kicker">
-        ZERO GRAVITY
+        <div class="pause-hint">
+          ESC · RESUME
+        </div>
       </div>
+    `;
 
-
-      <h2>
-        PAUSED
-      </h2>
-
-
-      <div class="pause-line">
-      </div>
-
-
-      <div class="pause-buttons">
-
-        <button
-          type="button"
-          data-pause-action="resume"
-        >
-          RESUME
-        </button>
-
-
-        <button
-          type="button"
-          data-pause-action="restart"
-        >
-          RESTART
-        </button>
-
-
-        <button
-          type="button"
-          class="pause-menu-button"
-          data-pause-action="menu"
-        >
-          MAIN MENU
-        </button>
-
-      </div>
-
-
-      <div class="pause-hint">
-        ESC · RESUME
-      </div>
-
-    </div>
-
-  `;
-
-
-  overlay
-    .querySelector(
-      '[data-pause-action="resume"]'
-    )
-    .addEventListener(
-      "click",
-      onResume
-    );
-
-
-  overlay
-    .querySelector(
-      '[data-pause-action="restart"]'
-    )
-    .addEventListener(
-      "click",
-      onRestart
-    );
-
-
-  overlay
-    .querySelector(
-      '[data-pause-action="menu"]'
-    )
-    .addEventListener(
-      "click",
-      onMenu
-    );
-
-
-  document.body.appendChild(
     overlay
-  );
+      .querySelector('[data-pause-action="resume"]')
+      .addEventListener("click", onResume);
 
+    overlay
+      .querySelector('[data-pause-action="restart"]')
+      .addEventListener("click", onRestart);
 
-  this.pauseMenu =
-    overlay;
+    overlay
+      .querySelector('[data-pause-action="menu"]')
+      .addEventListener("click", onMenu);
 
-}
+    document.body.appendChild(overlay);
+    this.pauseMenu = overlay;
+  }
 
-
-// ==========================================================
-// HIDE PAUSE MENU
-// ==========================================================
-
-hidePauseMenu() {
-
-  if (
-    this.pauseMenu
-  ) {
+  hidePauseMenu() {
+    if (!this.pauseMenu) return;
 
     this.pauseMenu.remove();
-
-    this.pauseMenu =
-      null;
-
+    this.pauseMenu = null;
   }
 
-}
+
+  // ==========================================================
+  // MODE
+  // ==========================================================
 
   setMode(mode) {
-
-    const aiMode =
-      mode === "ai";
-
+    const aiMode = mode === "ai";
 
     if (aiMode) {
-
-      // Player 1 HUD becomes full-screen.
-
-      this.halves[0]
-        .root
-        .style
-        .height = "100%";
-
-
-      // Hide AI HUD.
-
-      this.halves[1]
-        .root
-        .style
-        .display = "none";
-
-
-      this.divider
-        .style
-        .display = "none";
-
+      this.halves[0].root.style.height = "100%";
+      this.halves[1].root.style.display = "none";
+      this.divider.style.display = "none";
+    } else {
+      this.halves[0].root.style.height = "50%";
+      this.halves[1].root.style.display = "block";
+      this.divider.style.display = "block";
     }
-
-    else {
-
-      this.halves[0]
-        .root
-        .style
-        .height = "50%";
-
-
-      this.halves[1]
-        .root
-        .style
-        .display = "block";
-
-
-      this.divider
-        .style
-        .display = "block";
-
-    }
-
   }
 
 
-  setPlayerIdentity(
-    index,
-    name,
-    hint
-  ) {
+  // ==========================================================
+  // PLAYER IDENTITY
+  // ==========================================================
 
-    const hud =
-      this.halves[index];
-
+  setPlayerIdentity(index, name, hint) {
+    const hud = this.halves[index];
 
     if (!hud) return;
 
-
-    hud.name.textContent =
-      name;
-
-
-    hud.hint.textContent =
-      hint;
-
+    hud.name.textContent = name;
+    hud.hint.textContent = hint;
   }
 
 
+  // ==========================================================
+  // PLAYER UPDATE
+  // ==========================================================
+
   updatePlayer(i, data) {
     const h = this.halves[i];
+
     h.lap.textContent = `${data.lap}/${data.totalLaps}`;
     h.pos.textContent = `${data.pos}/${data.count}`;
     h.time.textContent = formatTime(data.lapTime);
     h.best.textContent = formatTime(data.bestLap);
     h.speed.textContent = data.speed;
+
     h.nitro.style.width = `${Math.round(data.nitro * 100)}%`;
+
     h.nitroBar.classList.toggle("active", data.nitroActive);
     h.nitroBar.classList.toggle("locked", data.nitroLocked);
   }
 
+
+  // ==========================================================
+  // MESSAGE
+  // ==========================================================
+
   setMessage(i, text, kind = "") {
     const el = this.halves[i].msg;
-    if (el.textContent === text && el.dataset.kind === kind) return;
+
+    if (
+      el.textContent === text &&
+      el.dataset.kind === kind
+    ) {
+      return;
+    }
+
     el.textContent = text;
     el.dataset.kind = kind;
     el.style.opacity = text ? "1" : "0";
   }
+
+
+  // ==========================================================
+  // RESULTS
+  // ==========================================================
 
   showResults({ title, color, rows, onRematch, onMenu }) {
     this.hideResults();
 
     const overlay = document.createElement("div");
     overlay.className = "hud-results";
+
     overlay.innerHTML = `
       <div class="hud-results-card" style="--player:${color}">
         <div class="hud-results-kicker">RACE FINISHED</div>
+
         <h2>${title}</h2>
+
         <table>
-          <thead><tr><th></th><th>Player</th><th>Result</th><th>Best lap</th></tr></thead>
+          <thead>
+            <tr>
+              <th></th>
+              <th>Player</th>
+              <th>Result</th>
+              <th>Best lap</th>
+            </tr>
+          </thead>
+
           <tbody>
             ${rows
-        .map(
-          (r) => `
-              <tr style="--player:${r.color}">
-                <td>${ordinal(r.place)}</td>
-                <td>${r.name}</td>
-                <td>${r.result}</td>
-                <td>${r.best}</td>
-              </tr>`
-        )
-        .join("")}
+              .map(
+                (row) => `
+                  <tr style="--player:${row.color}">
+                    <td>${ordinal(row.place)}</td>
+                    <td>${row.name}</td>
+                    <td>${row.result}</td>
+                    <td>${row.best}</td>
+                  </tr>
+                `
+              )
+              .join("")}
           </tbody>
         </table>
+
         <div class="hud-results-buttons">
           <button data-act="rematch">Rematch</button>
           <button data-act="menu" class="ghost">Main menu</button>
@@ -347,17 +300,22 @@ hidePauseMenu() {
       </div>
     `;
 
-    overlay.querySelector('[data-act="rematch"]').addEventListener("click", onRematch);
-    overlay.querySelector('[data-act="menu"]').addEventListener("click", onMenu);
+    overlay
+      .querySelector('[data-act="rematch"]')
+      .addEventListener("click", onRematch);
+
+    overlay
+      .querySelector('[data-act="menu"]')
+      .addEventListener("click", onMenu);
 
     document.body.appendChild(overlay);
     this.results = overlay;
   }
 
   hideResults() {
-    if (this.results) {
-      this.results.remove();
-      this.results = null;
-    }
+    if (!this.results) return;
+
+    this.results.remove();
+    this.results = null;
   }
 }

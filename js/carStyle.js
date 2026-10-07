@@ -6,8 +6,17 @@ const DEFAULT_STYLE = {
   emissive: 0x061827,
 };
 
+
+// ============================================================
+// CAR STYLE
+// ============================================================
+
 export function applyCarStyle(car, style = {}) {
-  const { body, edge, emissive } = { ...DEFAULT_STYLE, ...style };
+  const { body, edge, emissive } = {
+    ...DEFAULT_STYLE,
+    ...style,
+  };
+
   const wheels = [];
 
   car.traverse((child) => {
@@ -15,7 +24,11 @@ export function applyCarStyle(car, style = {}) {
 
     const name = child.name.toLowerCase();
 
+
+    // ========================================================
     // BODY
+    // ========================================================
+
     if (name === "body") {
       const oldMat = child.material;
 
@@ -28,16 +41,19 @@ export function applyCarStyle(car, style = {}) {
         clearcoatRoughness: 0.08,
         iridescence: 0.35,
         iridescenceIOR: 1.3,
-        emissive: emissive,
-        emissiveIntensity: 0.25
+        emissive,
+        emissiveIntensity: 0.25,
       });
 
-      const bodyEdges = new THREE.EdgesGeometry(child.geometry, 30);
+      const bodyEdges = new THREE.EdgesGeometry(
+        child.geometry,
+        30
+      );
 
       const bodyEdgeMat = new THREE.LineBasicMaterial({
         color: edge,
         transparent: true,
-        opacity: 0.8
+        opacity: 0.8,
       });
 
       const bodyOutline = new THREE.LineSegments(
@@ -48,7 +64,11 @@ export function applyCarStyle(car, style = {}) {
       child.add(bodyOutline);
     }
 
+
+    // ========================================================
     // WHEELS
+    // ========================================================
+
     if (name.includes("wheel")) {
       child.material = child.material.clone();
       child.material.color.set(0x111111);
@@ -56,8 +76,8 @@ export function applyCarStyle(car, style = {}) {
       child.geometry.computeBoundingBox();
 
       const box = child.geometry.boundingBox;
-
       const wheelSize = new THREE.Vector3();
+
       box.getSize(wheelSize);
 
       const wheelRadius =
@@ -65,10 +85,13 @@ export function applyCarStyle(car, style = {}) {
 
       const markerRadius = wheelRadius * 0.68;
       const markerSize = wheelRadius * 0.08;
-
       const side = name.includes("left") ? 1 : -1;
 
+
+      // ======================================================
       // RIM
+      // ======================================================
+
       const rimRadius = wheelRadius * 0.38;
       const rimDepth = 0.025;
 
@@ -86,21 +109,27 @@ export function applyCarStyle(car, style = {}) {
         metalness: 0.6,
         roughness: 0.25,
         emissive: 0x333333,
-        emissiveIntensity: 0.4
+        emissiveIntensity: 0.4,
       });
 
       const rim = new THREE.Mesh(rimGeo, rimMat);
 
-      const outerFaceX = name.includes("left")
-        ? box.max.x
-        : box.min.x;
+      const outerFaceX =
+        name.includes("left")
+          ? box.max.x
+          : box.min.x;
 
       rim.position.x =
-        outerFaceX + side * (rimDepth / 2 + 0.005);
+        outerFaceX +
+        side * (rimDepth / 2 + 0.005);
 
       child.add(rim);
 
-      // CYAN WHEEL MARKERS
+
+      // ======================================================
+      // WHEEL MARKERS
+      // ======================================================
+
       const markerGeo = new THREE.SphereGeometry(
         markerSize,
         8,
@@ -108,7 +137,7 @@ export function applyCarStyle(car, style = {}) {
       );
 
       const markerMat = new THREE.MeshBasicMaterial({
-        color: 0x00ffff
+        color: 0x00ffff,
       });
 
       for (let i = 0; i < 6; i++) {

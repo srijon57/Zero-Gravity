@@ -1,68 +1,19 @@
-// Keyboard input for two players on one keyboard.
-//
-// Player 1:
-// W A S D
-// Space / Left Shift = Nitro
-//
-// Player 2:
-// Arrow keys
-// Enter / Right Shift / Numpad 0 = Nitro
-
-
 export const CONTROLS = {
-
   p1: {
-
-    up: [
-      "KeyW"
-    ],
-
-    down: [
-      "KeyS"
-    ],
-
-    left: [
-      "KeyA"
-    ],
-
-    right: [
-      "KeyD"
-    ],
-
-    nitro: [
-      "Space",
-      "ShiftLeft"
-    ],
-
+    up: ["KeyW"],
+    down: ["KeyS"],
+    left: ["KeyA"],
+    right: ["KeyD"],
+    nitro: ["Space", "ShiftLeft"],
   },
-
 
   p2: {
-
-    up: [
-      "ArrowUp"
-    ],
-
-    down: [
-      "ArrowDown"
-    ],
-
-    left: [
-      "ArrowLeft"
-    ],
-
-    right: [
-      "ArrowRight"
-    ],
-
-    nitro: [
-      "Enter",
-      "ShiftRight",
-      "Numpad0"
-    ],
-
+    up: ["ArrowUp"],
+    down: ["ArrowDown"],
+    left: ["ArrowLeft"],
+    right: ["ArrowRight"],
+    nitro: ["Enter", "ShiftRight", "Numpad0"],
   },
-
 };
 
 
@@ -72,58 +23,27 @@ export const CONTROLS = {
 
 const keys = {};
 
+const gameCodes = new Set(
+  Object.values(CONTROLS).flatMap((controls) =>
+    Object.values(controls).flat()
+  )
+);
 
-// All game-related keyboard codes.
-
-const gameCodes =
-  new Set(
-
-    Object
-      .values(CONTROLS)
-      .flatMap(
-        (controls) =>
-          Object
-            .values(controls)
-            .flat()
-      )
-
-  );
-
-
-let inputEnabled =
-  false;
+let inputEnabled = false;
 
 
 // ============================================================
 // ENABLE / DISABLE INPUT
 // ============================================================
 
-export function setInputEnabled(
-  value
-) {
-
-  inputEnabled =
-    value;
-
-
-  // Clear all pressed keys
-  // whenever controls are disabled.
+export function setInputEnabled(value) {
+  inputEnabled = value;
 
   if (!value) {
-
-    Object
-      .keys(keys)
-      .forEach(
-        (key) => {
-
-          keys[key] =
-            false;
-
-        }
-      );
-
+    Object.keys(keys).forEach((key) => {
+      keys[key] = false;
+    });
   }
-
 }
 
 
@@ -131,90 +51,46 @@ export function setInputEnabled(
 // KEY DOWN
 // ============================================================
 
-window.addEventListener(
-  "keydown",
-  (event) => {
+window.addEventListener("keydown", (event) => {
+  keys[event.code] = true;
 
-    keys[event.code] =
-      true;
-
-
-    // Stop browser scrolling etc.
-    // only while racing.
-
-    if (
-      inputEnabled &&
-      gameCodes.has(
-        event.code
-      )
-    ) {
-
-      event.preventDefault();
-
-    }
-
+  if (
+    inputEnabled &&
+    gameCodes.has(event.code)
+  ) {
+    event.preventDefault();
   }
-);
+});
 
 
 // ============================================================
 // KEY UP
 // ============================================================
 
-window.addEventListener(
-  "keyup",
-  (event) => {
-
-    keys[event.code] =
-      false;
-
-  }
-);
+window.addEventListener("keyup", (event) => {
+  keys[event.code] = false;
+});
 
 
 // ============================================================
 // WINDOW LOSES FOCUS
 // ============================================================
 
-window.addEventListener(
-  "blur",
-  () => {
-
-    Object
-      .keys(keys)
-      .forEach(
-        (key) => {
-
-          keys[key] =
-            false;
-
-        }
-      );
-
-  }
-);
+window.addEventListener("blur", () => {
+  Object.keys(keys).forEach((key) => {
+    keys[key] = false;
+  });
+});
 
 
 // ============================================================
 // CHECK WHETHER ANY KEY IS DOWN
 // ============================================================
 
-export function isDown(
-  codes
-) {
-
-  if (
-    !Array.isArray(codes)
-  ) {
-
+export function isDown(codes) {
+  if (!Array.isArray(codes)) {
     return false;
-
   }
 
-
-  return codes.some(
-    (code) =>
-      !!keys[code]
-  );
-
+  return codes.some((code) => !!keys[code]);
 }
